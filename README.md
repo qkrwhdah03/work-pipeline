@@ -4,11 +4,25 @@ Installable work pipelines for [Claude Code](https://claude.com/claude-code) —
 
 ## Pipelines
 
-| Pipeline | What it does | Commands | Skills | Agents |
-| --- | --- | --- | --- | --- |
-| [dev](dev/docs/design.md) | Runs one dev request through design → code → test → docs → commit, then stops. Refactoring runs as a separate loop. | `/dev` `/dev-optimize` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-e-optimizer` |
+| Pipeline | What it does |
+| --- | --- |
+| [dev](#dev) | Takes one development request through design → code → test → docs → commit |
 
-Commands are what you type. Skills and agents are used by the pipeline itself — you don't call them.
+### dev
+
+Turns a development request into a full, documented change — then stops and waits for the next one.
+
+An architect agent reads the project's spec docs and turns your request into a design. A coder and a tester work from that design in parallel. A recorder updates the docs, writes down what's still unresolved, and commits. Next time, the architect starts from those leftovers, so the design stays consistent and context isn't lost between requests.
+
+| You type | Does |
+| --- | --- |
+| `/dev <request>` | Run one loop for the request |
+| `/dev-limitations` | Show unresolved items and refactoring candidates |
+| `/dev-optimize` | Refactor the recorded candidates without changing behavior |
+
+Used internally (you don't call these): skill `dev-loop`, agents `dev-a-architect` → `dev-b-coder` · `dev-c-tester` → `dev-d-recorder`, plus `dev-e-optimizer`.
+
+Full design: [dev/docs/design.md](dev/docs/design.md)
 
 ## Install
 
