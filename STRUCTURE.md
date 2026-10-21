@@ -101,6 +101,6 @@ Installing must be safe to re-run. Updating uses the same command.
 
 ## Pipelines
 
-| Name | What it does | Commands | Skills | Agents | Installed in |
-| --- | --- | --- | --- | --- | --- |
-| [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit. Optimization runs as a separate loop | `/dev` `/dev-optimize` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-e-optimizer` | `asset-manager` |
+| Name | What it does | Commands | Skills | Agents |
+| --- | --- | --- | --- | --- |
+| [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit. Optimization runs as a separate loop | `/dev` `/dev-optimize` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-e-optimizer` |
