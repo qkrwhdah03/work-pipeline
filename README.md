@@ -4,9 +4,11 @@ Installable work pipelines for [Claude Code](https://claude.com/claude-code) —
 
 ## Pipelines
 
-| Pipeline | What it does | Commands |
-| --- | --- | --- |
-| [dev](dev/docs/design.md) | Runs one dev request through design → code → test → docs → commit, then stops. Refactoring runs as a separate loop. | `/dev` `/dev-optimize` `/dev-limitations` |
+| Pipeline | What it does | Commands | Skills | Agents |
+| --- | --- | --- | --- | --- |
+| [dev](dev/docs/design.md) | Runs one dev request through design → code → test → docs → commit, then stops. Refactoring runs as a separate loop. | `/dev` `/dev-optimize` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-e-optimizer` |
+
+Commands are what you type. Skills and agents are used by the pipeline itself — you don't call them.
 
 ## Install
 
