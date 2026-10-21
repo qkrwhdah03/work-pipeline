@@ -65,10 +65,30 @@ You can install straight from `kit/` without going through the zip.
 
 Installing must be safe to re-run. Updating uses the same command.
 
+## Naming
+
+`<name>` is the pipeline name: one short lowercase word (`dev`, `review`, …). It is the folder name and the prefix for everything the pipeline installs. Words are joined with `-`, all lowercase.
+
+| What | Pattern | dev example |
+| --- | --- | --- |
+| Pipeline folder | `<name>/` | `dev/` |
+| Main command | `/<name>` | `/dev` |
+| Other commands | `/<name>-<verb or noun>` | `/dev-optimize`, `/dev-limitations` |
+| Command file | `commands/<command without />.md` | `commands/dev-optimize.md` |
+| Agent | `<name>-<role letter>-<role>` — letters in run order | `dev-a-architect`, `dev-e-optimizer` |
+| Skill | `<name>-<topic>` | `dev-loop` |
+| Project data folder | `.<name>/` | `.dev/` |
+| CLAUDE.md markers | `<!-- <NAME>-PIPELINE:BEGIN -->` … `<!-- <NAME>-PIPELINE:END -->` | `DEV-PIPELINE` |
+| Built files | `<name>-pipeline-kit.zip`, `<name>-pipeline.pdf` | `dev-pipeline-kit.zip` |
+
+- An agent's or skill's `name:` in frontmatter must equal its file or folder name.
+- Context documents inside `.<name>/context/` are numbered `NN-<topic>.md` (`00-project.md`, `04-devlog.md`).
+- **Renaming is a breaking change.** When you rename a command, agent or skill, make the installers delete the old file (see the install script rules below), and update every reference: kit, docs, README.md, this file.
+
 ## Rules for a new pipeline
 
-1. **Folder name = pipeline name = prefix.** One lowercase word (`dev`, `review`, …).
-2. **Prefix every command, agent and skill name.** Like `/dev`, `/dev-optimize`, `dev-a-architect`. That way several pipelines can be installed in one project without collisions.
+1. **Follow the naming rules below.**
+2. **Keep commands, agents and skills inside your own prefix.** Never ship an unprefixed name — several pipelines must be installable in one project without collisions.
 3. **Touch only your own marker block in CLAUDE.md.** `<!-- <NAME>-PIPELINE:BEGIN -->` … `<!-- <NAME>-PIPELINE:END -->`. Content outside the block and other pipelines' blocks are preserved.
 4. **Install script rules**
    - Always overwrite your own files under `.claude/`.
