@@ -4,38 +4,24 @@ Installable work pipelines for [Claude Code](https://claude.com/claude-code) —
 
 ## Pipelines
 
-| Pipeline | What it does |
-| --- | --- |
-| [dev](#dev) | Takes one development request through design → code → test → docs → commit |
+Each pipeline is one folder. Its design doc explains how it works.
 
-### dev
-
-Turns a development request into a full, documented change — then stops and waits for the next one.
-
-An architect agent reads the project's spec docs and turns your request into a design. A coder and a tester work from that design in parallel. A recorder updates the docs, writes down what's still unresolved, and commits. Next time, the architect starts from those leftovers, so the design stays consistent and context isn't lost between requests.
-
-| You type | Does |
-| --- | --- |
-| `/dev <request>` | Run one loop for the request |
-| `/dev-limitations` | Show unresolved items and refactoring candidates |
-| `/dev-optimize` | Refactor the recorded candidates without changing behavior |
-
-Used internally (you don't call these): skill `dev-loop`, agents `dev-a-architect` → `dev-b-coder` · `dev-c-tester` → `dev-d-recorder`, plus `dev-e-optimizer`.
-
-Full design: [dev/docs/design.md](dev/docs/design.md)
+| Pipeline | What it does | Commands |
+| --- | --- | --- |
+| [dev](dev/docs/design.md) | Takes one development request through design → code → test → docs → commit, keeping spec docs and unresolved items for the next request | `/dev` `/dev-optimize` `/dev-limitations` |
 
 ## Install
 
 ```bash
 git clone https://github.com/qkrwhdah03/work-pipeline.git
-./work-pipeline/dev/kit/install.sh /path/to/your-project
+./work-pipeline/<pipeline>/kit/install.sh /path/to/your-project   # e.g. dev
 ```
 
-On Windows: `.\work-pipeline\dev\kit\install.ps1 C:\path\to\your-project`
+On Windows: `.\work-pipeline\<pipeline>\kit\install.ps1 C:\path\to\your-project`
 
 Re-run the same command to update. Your project's context docs and the rest of its `CLAUDE.md` are kept.
 
-Then open Claude Code in that project and run `/dev <your request>`.
+Then open Claude Code in that project and use the pipeline's commands (for dev: `/dev <your request>`).
 
 ## Language
 
