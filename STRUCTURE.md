@@ -97,6 +97,7 @@ Installing must be safe to re-run. Updating uses the same command.
    - Ship both `install.sh` and `install.ps1`, and keep their behavior in sync.
 5. **Follow the global rules above**, including the `### Language` section in the CLAUDE snippet.
 6. **The first `# Title` line of `docs/design.md` becomes the PDF title.**
+7. **README.md gets one table row per pipeline** — name (linked to its design doc), one-line description, commands. Details belong in the pipeline's own `docs/`, so the README stays short as pipelines are added.
 
 ## Pipelines
 
