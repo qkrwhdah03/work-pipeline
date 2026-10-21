@@ -1,0 +1,16 @@
+{
+  "_README": "Optional. Not included in the default install. To use it, merge this file's hooks block into the project's .claude/settings.json. Enable it only if you want to enforce tests before every commit. Replace <TEST_COMMAND> with the project's test command.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'read -r input; cmd=$(printf \"%s\" \"$input\" | python3 -c \"import sys,json; print(json.load(sys.stdin).get(\\\"tool_input\\\",{}).get(\\\"command\\\",\\\"\\\"))\"); case \"$cmd\" in *\"git commit\"*) <TEST_COMMAND> >/dev/null 2>&1 || { echo \"Tests failed — commit blocked (dev loop convention)\" >&2; exit 2; };; esac; exit 0'"
+          }
+        ]
+      }
+    ]
+  }
+}
