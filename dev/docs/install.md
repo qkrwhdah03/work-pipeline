@@ -43,7 +43,7 @@ Safe to re-run. Existing documents in `.dev/context/` are preserved, and only th
 │   │   ├── dev-c-tester.md
 │   │   ├── dev-d-recorder.md
 │   │   └── dev-e-optimizer.md
-│   ├── commands/                /dev · /dev-optimize · /limitations
+│   ├── commands/                /dev · /dev-optimize · /dev-limitations
 │   ├── skills/dev-loop/         procedures · templates · doc update checklist
 │   └── hooks.optional.json      enforce tests before commit (off by default)
 └── .dev/
@@ -66,7 +66,7 @@ Split four ways, exactly as mapped in the design doc. **Rules go in CLAUDE.md, p
 | Mechanism | Owns | Why |
 | --- | --- | --- |
 | **subagent** | A–E | Skills can't isolate context. If everything piles up in one conversation, tokens grow quadratically as the loop gets longer. Permission boundaries (B can't edit tests) also only hold with isolation. |
-| **command** | `/dev` `/dev-optimize` `/limitations` | Explicit entry points. This is the switch that makes it run "only during development". |
+| **command** | `/dev` `/dev-optimize` `/dev-limitations` | Explicit entry points. This is the switch that makes it run "only during development". |
 | **CLAUDE.md** | rules | Pins permission boundaries, commit conventions and stop conditions where they're always read. |
 | **skill** | procedures · templates | Long references read **only when needed**, such as document boundary rules and update checklists. |
 
@@ -100,7 +100,7 @@ Wait       stop until the next request
 
 ```
 /dev-optimize        behavior-preserving refactor of the devlog's 'Optimization Targets' (manual only)
-/limitations         view accumulated limitations / optimization targets
+/dev-limitations     view accumulated limitations / optimization targets
 ```
 
 ---

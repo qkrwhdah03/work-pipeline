@@ -28,13 +28,15 @@ New-Item -ItemType Directory -Force -Path (Join-Path $Dot "skills")   | Out-Null
 
 Copy-Item (Join-Path $Tpl "claude\agents\*")   (Join-Path $Dot "agents")   -Force
 Copy-Item (Join-Path $Tpl "claude\commands\*") (Join-Path $Dot "commands") -Force
-Remove-Item (Join-Path $Dot "commands\optimize.md") -Force -ErrorAction SilentlyContinue  # legacy /optimize -> /dev-optimize
+foreach ($Old in "optimize.md", "limitations.md") {  # legacy names -> /dev-optimize, /dev-limitations
+  Remove-Item (Join-Path $Dot "commands\$Old") -Force -ErrorAction SilentlyContinue
+}
 $SkillDest = Join-Path $Dot "skills\dev-loop"
 if (Test-Path $SkillDest) { Remove-Item $SkillDest -Recurse -Force }
 Copy-Item (Join-Path $Tpl "claude\skills\dev-loop") (Join-Path $Dot "skills") -Recurse -Force
 Copy-Item (Join-Path $Tpl "claude\hooks.optional.json") $Dot -Force
 Write-Host "  [v] .claude/agents  (5 agents, A~E)"
-Write-Host "  [v] .claude/commands  (/dev, /dev-optimize, /limitations)"
+Write-Host "  [v] .claude/commands  (/dev, /dev-optimize, /dev-limitations)"
 Write-Host "  [v] .claude/skills/dev-loop"
 
 # --- .dev/ : left untouched if already present (these are state files) ---

@@ -6,7 +6,7 @@ Installable work pipelines for [Claude Code](https://claude.com/claude-code) —
 
 | Pipeline | What it does | Commands |
 | --- | --- | --- |
-| [dev](dev/docs/design.md) | Runs one dev request through design → code → test → docs → commit, then stops. Refactoring runs as a separate loop. | `/dev` `/dev-optimize` `/limitations` |
+| [dev](dev/docs/design.md) | Runs one dev request through design → code → test → docs → commit, then stops. Refactoring runs as a separate loop. | `/dev` `/dev-optimize` `/dev-limitations` |
 
 ## Install
 

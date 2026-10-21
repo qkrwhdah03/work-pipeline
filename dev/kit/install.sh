@@ -15,12 +15,12 @@ echo "Install target: $TARGET"
 mkdir -p "$TARGET/.claude/agents" "$TARGET/.claude/commands" "$TARGET/.claude/skills"
 cp -f "$TPL/claude/agents/"*.md   "$TARGET/.claude/agents/"
 cp -f "$TPL/claude/commands/"*.md "$TARGET/.claude/commands/"
-rm -f "$TARGET/.claude/commands/optimize.md"   # legacy /optimize -> /dev-optimize
+rm -f "$TARGET/.claude/commands/optimize.md" "$TARGET/.claude/commands/limitations.md"   # legacy names -> /dev-optimize, /dev-limitations
 rm -rf "$TARGET/.claude/skills/dev-loop"
 cp -R  "$TPL/claude/skills/dev-loop" "$TARGET/.claude/skills/"
 cp -f  "$TPL/claude/hooks.optional.json" "$TARGET/.claude/"
 echo "  [v] .claude/agents  (5 agents, A~E)"
-echo "  [v] .claude/commands  (/dev, /dev-optimize, /limitations)"
+echo "  [v] .claude/commands  (/dev, /dev-optimize, /dev-limitations)"
 echo "  [v] .claude/skills/dev-loop"
 
 # --- .dev/ : existing files preserved ---

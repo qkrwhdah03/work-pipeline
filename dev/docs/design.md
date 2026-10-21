@@ -207,7 +207,7 @@ When a mismatch is detected, A reads it first on the next request. The line of d
 | Skill | per-role procedures, spec templates, doc update checklist |
 | Subagent | each of A–E — the implementation of context independence |
 | Hook | enforce tests before commit, load 04-devlog at session start |
-| Command | `/dev`, `/dev-optimize`, `/limitations` |
+| Command | `/dev`, `/dev-optimize`, `/dev-limitations` |
 
 **Principle: rules in CLAUDE.md, procedures in skills, enforcement in hooks, isolation in subagents.**
 

@@ -116,4 +116,4 @@ Limitations carried over to the next loop
 - ...
 ```
 
-If limitations have piled up, add one line saying they can be viewed with `/limitations`. If optimization targets have piled up, **only suggest** `/dev-optimize` — do not call it yourself.
+If limitations have piled up, add one line saying they can be viewed with `/dev-limitations`. If optimization targets have piled up, **only suggest** `/dev-optimize` — do not call it yourself.

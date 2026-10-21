@@ -82,4 +82,4 @@ Installing must be safe to re-run. Updating uses the same command.
 
 | Name | What it does | Commands | Installed in |
 | --- | --- | --- | --- |
-| [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit. Optimization runs as a separate loop | `/dev` `/dev-optimize` `/limitations` | `asset-manager` |
+| [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit. Optimization runs as a separate loop | `/dev` `/dev-optimize` `/dev-limitations` | `asset-manager` |
