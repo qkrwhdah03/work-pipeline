@@ -1,9 +1,9 @@
 ---
 description: View accumulated limitations / optimization targets
-allowed-tools: Read, Bash, Glob, Grep
+allowed-tools: Read, Bash(python3 .claude/skills/dev-loop/scripts/devtool.py:*), Bash(python .claude/skills/dev-loop/scripts/devtool.py:*)
 ---
 
-Read `.dev/context/04-devlog.md` and show the two sections **separately**.
+Run `python3 .claude/skills/dev-loop/scripts/devtool.py devlog limitations` and `… devlog optimization` (`python …` if `python3` isn't available) and show the two sections **separately**.
 
 ```
 Limitations / Improvements  (read by A on the next /dev)

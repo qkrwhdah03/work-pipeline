@@ -1,7 +1,7 @@
 ---
 description: Analyze one paper — where it sits in the field, its claims, the evidence behind them, and its limitations
 argument-hint: <paper title, arXiv ID / URL, DOI, or path to a PDF>
-allowed-tools: WebSearch, WebFetch, Bash, Read, Write, Glob, Grep
+allowed-tools: WebSearch, WebFetch, Read, Write, Glob, Grep, Bash(python3 .claude/skills/research-sources/scripts/researchtool.py:*), Bash(python .claude/skills/research-sources/scripts/researchtool.py:*)
 ---
 
 Paper: **$ARGUMENTS**
@@ -12,16 +12,18 @@ Explain this paper so the reader understands where it fits, how it works, what i
 
 Read `.claude/skills/research-sources/SKILL.md` first and follow it throughout — especially **verify before citing** and **keep "what the paper says" apart from "your assessment."**
 
+Do lookups with the skill's script instead of hand-written requests — `RT` below means `python3 .claude/skills/research-sources/scripts/researchtool.py` (`python …` if `python3` isn't available).
+
 Write in the user's language (the language of their request). Paper titles, method names, dataset and metric names, and author names stay as published.
 
 ## 1. Identify the paper
 
-- Resolve the input to one paper and give it the skill's **full check**: title, authors, venue + year (published version over arXiv), paper link, official code.
+- Resolve the input to one paper and give it the skill's **full check**: `RT meta` for title, authors and venue + year (published version over arXiv); `RT page <venue page>` to confirm on the venue's own page; `RT github … --paper "<title>" --paper <arXiv id>` for official code.
 - If the input matches several papers, list them and ask which one. Don't guess.
 
 ## 2. Get the full text
 
-Use the first that works: a local PDF path (read it directly) → `https://arxiv.org/html/<id>` → the arXiv / venue PDF. Fetch with curl and extract the text yourself, keeping equations (e.g. the `alttext` of math elements in arXiv HTML); WebFetch only returns a paraphrase.
+Use the first that works: a local PDF path (read it directly) → `RT fulltext <arXiv id>` → the arXiv / venue PDF (read it directly). `RT fulltext` saves the paper as text (equations kept) under `.research/cache/` and prints an outline with line numbers and the table / figure captions — **read section by section using those line numbers** rather than loading the whole file at once.
 
 Read the whole paper, including appendices, and the supplementary material if it's linked. **If you cannot get the full text — or a linked supplement is unreachable — say so at the top**, and keep the analysis within what you actually read. Never reconstruct content from memory.
 
@@ -29,7 +31,7 @@ Read the whole paper, including appendices, and the supplementary material if it
 
 - If `.research/lists/` has a list on a related topic, read it first.
 - From the paper's related-work section: the line of work it extends, and the alternatives it argues against.
-- What came after: from the works citing it (OpenAlex / Semantic Scholar, sorted by citations), pick **at most 5–10**, grouped by direction — did it become a building block, a baseline, or a dead end? These need only the skill's **light check**.
+- What came after: `RT cites <arXiv id or DOI> --n 15`, then pick **at most 5–10**, grouped by direction — did it become a building block, a baseline, or a dead end? These need only the skill's **light check** (the `RT cites` record itself).
 
 ## 4. Analyze
 
@@ -58,7 +60,8 @@ Two checks that often find the real issues:
 ```
 # <Title>
 
-<Authors (first three, then et al.)> · <Venue> <Year> · [Paper](<link>) · [Code](<link>) or Code: —
+<Authors (first three, then et al.)> · <Venue> <Year> · [Paper](<link>) · [Code](<link>) or Code: — · [BibTeX](<link from `RT bibtex`>)
+Citation: <slide-ready, same format as /research-list-paper: First-author et al., Title (Venue Year)>
 > Source notes: <citations (source, date); anything unconfirmed or unreachable — full text, supplement, project page, venue page>
 
 ## Big picture

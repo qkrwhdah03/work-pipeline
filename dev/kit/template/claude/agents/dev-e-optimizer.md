@@ -35,7 +35,7 @@ There is one test for this. **If not a single line of the existing tests changes
 For the target items (those specified, or all of `## Optimization Targets` if none), starting with the narrowest impact, repeat steps 1-5 below **one item at a time, in order**. There is no limit on the number. However, a sweeping refactor not recorded in the devlog is forbidden.
 
 1. Pick the next item.
-2. Before refactoring, run the existing tests and **first confirm they all pass now.** If something is already broken, touch nothing and stop **everything** with `STATUS: DIRTY_BASELINE`.
+2. Before refactoring, run the existing tests and **first confirm they all pass now.** Always run tests through `python3 .claude/skills/dev-loop/scripts/devtool.py test -- <test command from CLAUDE.md>` (`python …` if `python3` isn't available): it prints only the summary and failure lines and keeps the full log in a file. If something is already broken, touch nothing and stop **everything** with `STATUS: DIRTY_BASELINE`.
 3. Refactor **with the public interfaces frozen.**
 4. Run all existing tests again.
    - **Pass** → step 5

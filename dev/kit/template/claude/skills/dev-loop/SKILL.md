@@ -18,6 +18,19 @@ Three principles explain every other design decision.
 2. **Docs are the state.** `.dev/context/` is itself the project's state. Updating docs is not extra work; it is what closes the loop.
 3. **Context isolation is token efficiency.** Instructions are split into files so each agent reads only its own.
 
+## Script
+
+`scripts/devtool.py` (Python 3, standard library only) does the loop's bookkeeping. Run it from the project root as `python3 .claude/skills/dev-loop/scripts/devtool.py <command>` (`python …` if `python3` isn't available).
+
+| Command | Does |
+| --- | --- |
+| `preflight [--no-loop]` | git repo + clean working tree check; creates `.dev/loops/<LOOP_ID>/` and prints the ID |
+| `devlog [limitations\|optimization\|log\|all] [--count]` | prints 04-devlog sections, or just their item counts |
+| `prune-loops [--keep 10]` | deletes the oldest loop folders |
+| `test [--loop LOOP_ID] -- <test command>` | runs the tests; prints exit code, summary and failure lines only; full log to `.dev/loops/<LOOP_ID>/test.log` |
+
+Always run tests through `test` — raw test output is the biggest token cost in a loop.
+
 ## Spec Doc Boundary Rules
 
 | Doc | Question | Changes when |

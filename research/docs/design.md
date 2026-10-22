@@ -36,7 +36,7 @@ flowchart TD
     R --> O["Overview + Foundational + Recent<br/>save to .research/lists/"]
 ```
 
-Each entry gives title, venue, year, an accessible paper link, the official code link (or `—`), why the paper is key, and a 2–3 sentence summary of the problem it tackles and how — or what it claims. An overview paragraph on top traces how the topic developed.
+Each entry is a table row: a slide-ready citation (`Kerbl et al., <Title> (SIGGRAPH 2023)`), links to the paper, the official code (or `—`) and a page that serves its BibTeX, why the paper is key, and a 2–3 sentence summary of the problem it tackles and how — or what it claims. An overview paragraph on top traces how the topic developed.
 
 Defaults: 10–15 papers, split between foundational work and the last ~2 years. The request can change the range, the count or the focus.
 
@@ -75,6 +75,8 @@ Anything that rests on a weaker source or couldn't be reached is written in the 
 
 ## Sources
 
+Lookups run through `researchtool.py` in the skill's `scripts/` folder — search, metadata, citing works, venue pages, GitHub, BibTeX links and full text — so each run prints only what's needed instead of raw pages.
+
 The skill `research-sources` holds the shared rules: venue tiers, arXiv-only criteria, the verification table, link priority and lookup services. Both commands read it first.
 
 Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Semantic Scholar APIs plus the venue sites (CVF Open Access, OpenReview, PMLR, NeurIPS proceedings, ACM DL). All work without keys; if `SEMANTIC_SCHOLAR_API_KEY` or `OPENALEX_API_KEY` is set, it is used. The pipeline never signs up for keys or sends the user's details anywhere.
@@ -88,7 +90,7 @@ Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Seman
 │   ├── commands/
 │   │   ├── research-list-paper.md
 │   │   └── research-summary-paper.md
-│   └── skills/research-sources/       source & verification rules
+│   └── skills/research-sources/       source & verification rules + scripts/researchtool.py
 └── .research/
     ├── lists/                         /research-list-paper output
     └── papers/                        /research-summary-paper output

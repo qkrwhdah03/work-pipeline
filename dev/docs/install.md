@@ -44,7 +44,7 @@ Safe to re-run. Existing documents in `.dev/context/` are preserved, and only th
 │   │   ├── dev-d-recorder.md
 │   │   └── dev-e-optimizer.md
 │   ├── commands/                /dev · /dev-optimize · /dev-limitations
-│   ├── skills/dev-loop/         procedures · templates · doc update checklist
+│   ├── skills/dev-loop/         procedures · templates · doc update checklist · scripts/devtool.py
 │   └── hooks.optional.json      enforce tests before commit (off by default)
 └── .dev/
     ├── context/                 persistent — the project's state

@@ -85,7 +85,7 @@ Failure is context too. In the next loop, A reads this and redesigns.
 
 ### 6. Prune loops
 
-If `.dev/loops/` has more than 10 subdirectories, delete the oldest by name until only 10 remain. Their contents survive as summaries in the commit messages and the devlog.
+Run `python3 .claude/skills/dev-loop/scripts/devtool.py prune-loops` (`python …` if `python3` isn't available). It keeps the latest 10 loop folders and deletes the rest. Their contents survive as summaries in the commit messages and the devlog.
 
 ## Report
 

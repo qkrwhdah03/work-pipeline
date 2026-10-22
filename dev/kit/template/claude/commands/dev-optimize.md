@@ -1,16 +1,18 @@
 ---
 description: Optimization loop — behavior-preserving refactors of the devlog's optimization targets (multiple items allowed)
 argument-hint: [target items (all if omitted)]
-allowed-tools: Task, Bash, Read, Glob, Grep
+allowed-tools: Task, Read, Glob, Grep, Bash(python3 .claude/skills/dev-loop/scripts/devtool.py:*), Bash(python .claude/skills/dev-loop/scripts/devtool.py:*)
 ---
 
 Optimization targets: **$ARGUMENTS** (if empty, E processes all of `## Optimization Targets` in `04-devlog.md`, starting with the narrowest impact)
 
 ## Preflight
 
-1. `git status --porcelain` — **stop if the working tree is not clean.** E must roll back on failure, so a clean tree is a precondition.
+`DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (`python …` if `python3` isn't available), run from the project root.
+
+1. `DT preflight --no-loop` — **stop on `ERROR`** (not a git repo, or the working tree is not clean). E must roll back on failure, so a clean tree is a precondition.
 2. Confirm the main dev loop is not running. E and the main loop touch the same code, so **never run them at the same time.**
-3. If `## Optimization Targets` in `.dev/context/04-devlog.md` is empty, stop and say so.
+3. `DT devlog optimization --count` — if it is 0, stop and say so.
 
 ## Run
 

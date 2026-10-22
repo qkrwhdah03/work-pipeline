@@ -13,6 +13,24 @@ These apply to every pipeline in this repository.
 - Identifiers the pipeline depends on stay in English even in the user's output: structural headings, STATUS codes, commit field names, trailers, spec IDs.
 - Each pipeline states this in a `### Language` section of its CLAUDE snippet, so it takes effect in the installed project.
 
+**Token efficiency: mechanical work goes in scripts.**
+
+Anything deterministic a pipeline does on every run — fetching and parsing pages or APIs, git checks, ID and folder bookkeeping, running tests and condensing their output — lives in a script shipped with the kit. Claude calls the script instead of re-deriving the same steps each run.
+
+- One entry script per skill: `skills/<skill>/scripts/<name>tool.py`, with subcommands (`devtool.py preflight`, `researchtool.py meta …`).
+- Python 3 standard library only — nothing to install.
+- Print only what the next step needs, as compact plain text. Bulky data (full text, full logs) goes to a file; print its path and a short outline so Claude reads only the part it needs.
+- Fail loudly: one `ERROR: …` line and a non-zero exit.
+- Commands say how to run it: `python3 <script> …`, or `python <script> …` where `python3` isn't available (Windows).
+
+**Permissions: pre-approve narrowly.**
+
+A command's `allowed-tools` lists exactly what it needs, so it runs without repeated approval prompts but can't do more than its job.
+
+- Allow the pipeline's own scripts by path — `Bash(python3 .claude/skills/<skill>/scripts/<name>tool.py:*)` and the same with `python` — and specific commands it needs (e.g. `Bash(git status:*)`), never bare `Bash`.
+- Read-only tools (`Read`, `Glob`, `Grep`) and the tools the job is about (`WebSearch`, `WebFetch`, `Task`, `Write`) are listed by name.
+- Agents list only the tools their role needs in `tools:`.
+
 ## Layout
 
 ```
@@ -77,6 +95,7 @@ Installing must be safe to re-run. Updating uses the same command.
 | Command file | `commands/<command without />.md` | `commands/dev-optimize.md` |
 | Agent | `<name>-<role letter>-<role>` — letters in run order | `dev-a-architect`, `dev-e-optimizer` |
 | Skill | `<name>-<topic>` | `dev-loop` |
+| Script | `skills/<skill>/scripts/<name>tool.py` | `skills/dev-loop/scripts/devtool.py` |
 | Project data folder | `.<name>/` | `.dev/` |
 | CLAUDE.md markers | `<!-- <NAME>-PIPELINE:BEGIN -->` … `<!-- <NAME>-PIPELINE:END -->` | `DEV-PIPELINE` |
 | Built files | `<name>-pipeline-kit.zip`, `<name>-pipeline.pdf` | `dev-pipeline-kit.zip` |
@@ -87,7 +106,7 @@ Installing must be safe to re-run. Updating uses the same command.
 
 ## Rules for a new pipeline
 
-1. **Follow the naming rules below.**
+1. **Follow the naming rules above.**
 2. **Keep commands, agents and skills inside your own prefix.** Never ship an unprefixed name — several pipelines must be installable in one project without collisions.
 3. **Touch only your own marker block in CLAUDE.md.** `<!-- <NAME>-PIPELINE:BEGIN -->` … `<!-- <NAME>-PIPELINE:END -->`. Content outside the block and other pipelines' blocks are preserved.
 4. **Install script rules**

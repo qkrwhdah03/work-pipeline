@@ -19,8 +19,10 @@ Prefer peer-reviewed papers from established venues. Use this tiering to rank an
 | 1 | Journals | IEEE TPAMI, IJCV, IEEE TVCG, JMLR |
 | 2 | Vision / graphics | WACV, BMVC, 3DV, Eurographics, Computer Graphics Forum, IEEE TIP |
 | 2 | ML / AI | AAAI, IJCAI, AISTATS, UAI, TMLR |
+| 1 | Robotics | RSS, CoRL, ICRA, IEEE T-RO |
+| 2 | Robotics | IROS, IEEE RA-L |
 
-For topics outside these areas, use that field's flagship venues the same way (e.g. ACL / EMNLP / NAACL for NLP; RSS / CoRL / ICRA for robotics; CHI for HCI) and say which ones you treated as tier 1.
+For topics outside these areas, use that field's flagship venues the same way (e.g. ACL / EMNLP / NAACL for NLP; CHI for HCI) and say which ones you treated as tier 1.
 
 - **Workshop papers are not main-conference papers.** Label them `(workshop)`.
 - **Findings / short / demo tracks** are labeled as such, not as the main venue.
@@ -57,18 +59,36 @@ There are two levels:
 | Venue + year | the venue's own record — proceedings page (CVF Open Access, PMLR, NeurIPS / ICLR virtual site, OpenReview decision), or the DOI record (Crossref). An arXiv `journal_ref` / comment or an OpenAlex venue counts only when a second source agrees. |
 | Paper link | the link opens and shows this paper — or, if that site blocks automated access, you took the URL from an official record (venue site, DOI record) |
 | Code link | see below |
+| BibTeX link | a page that shows the BibTeX — the venue's paper page (CVF, PMLR) or a `.bib` / Crossref / arXiv BibTeX URL (`researchtool.py bibtex`); otherwise `—` |
 
 **Light check — papers only mentioned in passing** (e.g. follow-up work in a "big picture" section): one metadata record (OpenAlex, Crossref, Semantic Scholar or arXiv) for title, venue and year is enough.
 
 **Accessible link, in this order:** open-access venue page (CVF Open Access, OpenReview, PMLR, proceedings.neurips.cc) → arXiv abs page → DOI. Mark a DOI `(paywalled)` only if you confirmed it is.
 
-**Code link** — only an **official** repository. It counts as official when it's linked from the paper, its project page or its arXiv abstract — or, if those can't be reached, when the repo is owned by an author or their lab **and** its README points back to this paper. Confirm the repo exists (GitHub API). Write `—` when there is no official code. If you list a well-known unofficial implementation, mark it `(unofficial)`.
+**Code link** — only an **official** repository. It counts as official when it's linked from the paper, its project page or its arXiv abstract — or, if those can't be reached, when the repo is owned by an author or their lab **and** its README points back to this paper. Confirm the repo exists (GitHub API). Whether a README uses the word "official" doesn't decide anything — many official repos never say it. Write `—` when there is no official code. If you list a well-known unofficial implementation, mark it `(unofficial)`.
 
 **Record what you couldn't confirm.** If a detail rests on a weaker source or couldn't be checked (a dead project page, a venue page behind a bot wall), say so in the output's source note rather than silently dropping or asserting it.
 
+## Script
+
+`scripts/researchtool.py` (Python 3, standard library only) does the lookups below and prints only what you need. Use it instead of writing requests by hand — run it as `python3 .claude/skills/research-sources/scripts/researchtool.py <command>` (`python …` if `python3` isn't available).
+
+| Command | Gives you |
+| --- | --- |
+| `search "<query>" [--n 10] [--since YEAR]` | candidates from OpenAlex, one line each: year · venue · citations · title · DOI · arXiv id |
+| `meta <arXiv id \| DOI \| "title">` | arXiv (authors, comment, journal_ref), Crossref (venue, volume, year), OpenAlex (venue, citations, open-access URL), and the **exact** abstract — the same published record whichever id you start from |
+| `cites <arXiv id \| DOI> [--n 10] [--since YEAR]` | the most-cited works citing it |
+| `page <url> [--grep REGEX] [--links REGEX]` | fetches as a browser (gets past CVF's block): page title, CVF paper title, GitHub links on the page, matching lines / links |
+| `venue-url "<title>" <CVPR2024 \| ICCV2023 \| WACV2024>` | the paper's CVF Open Access page, found from the conference listing — CVF URLs can't be guessed reliably |
+| `github <owner/repo> --paper "<title>" --paper <arXiv id> [--page <project page>]` | repo exists, owner, stars, whether the README names the paper, and whether the project page links the repo |
+| `bibtex <venue page URL> [DOI] [arXiv id]` | the first link that shows the BibTeX: venue page (CVF, PMLR, NeurIPS `.bib`) → Crossref by DOI → arXiv |
+| `fulltext <arXiv id> [--out FILE]` | arXiv HTML → text file (equations kept) + outline with line numbers and table / figure captions |
+
+It exits with one `ERROR: …` line when a lookup fails; then fall back to the services below or WebSearch / WebFetch.
+
 ## Lookup services
 
-Use web search to discover candidates, then these to verify. All work without a key; respect rate limits and back off on HTTP 429 instead of hammering.
+Use web search to discover candidates, then these to verify. The script already covers them; call them directly only when it can't. All work without a key; respect rate limits and back off on HTTP 429 instead of hammering.
 
 | Service | Use for | Endpoint |
 | --- | --- | --- |

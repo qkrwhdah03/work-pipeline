@@ -1,7 +1,7 @@
 ---
 description: One dev loop iteration — design translation (A) → implementation (B) ∥ tests (C) → verdict → record and commit (D)
 argument-hint: <dev request>
-allowed-tools: Task, Bash, Read, Write, Edit, Glob, Grep
+allowed-tools: Task, Read, Glob, Grep, Bash(python3 .claude/skills/dev-loop/scripts/devtool.py:*), Bash(python .claude/skills/dev-loop/scripts/devtool.py:*)
 ---
 
 Dev request: **$ARGUMENTS**
@@ -14,10 +14,12 @@ Report progress in one line per stage. Do not spell out intermediate results at 
 
 ## 0. Preflight
 
-1. Confirm this is a git repo with `git rev-parse --is-inside-work-tree`. If not, stop and say so.
-2. **Confirm the working tree is clean** with `git status --porcelain`. If not, stop and tell the user to commit or stash and then call again. (This serializes loops. It prevents E and the main loop from modifying the same files at the same time.)
-3. `LOOP_ID` = `YYYY-MM-DD-NNN` (today's date + the number of today's directories in `.dev/loops/` +1, as 3 digits). Create `.dev/loops/<LOOP_ID>/`.
-4. If `.dev/context/` does not exist, create `.dev/context/` and `.dev/loops/`. (A will bootstrap.)
+`DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (`python …` if `python3` isn't available), run from the project root.
+
+Run `DT preflight`. It checks this is a git repo and **the working tree is clean** (this serializes loops, so E and the main loop never modify the same files at once), then creates `.dev/loops/<LOOP_ID>/` and prints `LOOP_ID: …`.
+
+- `ERROR: …` → stop and relay it (e.g. ask the user to commit or stash, then call again).
+- `context: missing` → fine; A will bootstrap.
 
 ---
 

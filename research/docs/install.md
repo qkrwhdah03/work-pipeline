@@ -29,7 +29,7 @@ Safe to re-run to update. Saved lists and analyses in `.research/` are never tou
 
 | Command | Gives you | Saved to |
 | --- | --- | --- |
-| `/research-list-paper <topic>` | 10–15 key papers (foundational + recent) with venue, year, paper and code links, and a short summary each | `.research/lists/` |
+| `/research-list-paper <topic>` | 10–15 key papers (foundational + recent) in a table: slide-ready citation, paper · code · BibTeX links, and a short summary each | `.research/lists/` |
 | `/research-summary-paper <paper>` | where the paper fits, its claims, the evidence for each, and its limitations | `.research/papers/` |
 
 Options go in plain words after the topic: `since 2023`, `top 10`, `foundational only`. A paper can be a title, arXiv ID or URL, DOI, or a local PDF path.
@@ -49,6 +49,6 @@ Everything works without keys. Semantic Scholar is often rate-limited without on
 <folder>/
 ├── CLAUDE.md                     research block (commands, language, integrity rules)
 ├── .claude/commands/             research-list-paper.md, research-summary-paper.md
-├── .claude/skills/research-sources/
+├── .claude/skills/research-sources/   (+ scripts/researchtool.py)
 └── .research/lists/, .research/papers/
 ```
