@@ -16,7 +16,7 @@ mkdir -p "$TARGET/.claude/commands" "$TARGET/.claude/skills"
 cp -f "$TPL/claude/commands/"*.md "$TARGET/.claude/commands/"
 rm -rf "$TARGET/.claude/skills/research-sources"
 cp -R  "$TPL/claude/skills/research-sources" "$TARGET/.claude/skills/"
-echo "  [v] .claude/commands  (/research-list-paper, /research-summary-paper)"
+echo "  [v] .claude/commands  (/research-list-paper, /research-summary-paper, /research-download-paper)"
 echo "  [v] .claude/skills/research-sources"
 
 # --- .research/ : outputs, never touched if present ---

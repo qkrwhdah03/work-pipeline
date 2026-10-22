@@ -83,6 +83,7 @@ There are two levels:
 | `github <owner/repo> --paper "<title>" --paper <arXiv id> [--page <project page>]` | repo exists, owner, stars, whether the README names the paper, and whether the project page links the repo |
 | `bibtex <venue page URL> [DOI] [arXiv id]` | the first link that shows the BibTeX: venue page (CVF, PMLR, NeurIPS `.bib`) → Crossref by DOI → arXiv |
 | `fulltext <arXiv id> [--out FILE]` | arXiv HTML → text file (equations kept) + outline with line numbers and table / figure captions |
+| `download <venue page \| PDF URL \| DOI \| arXiv id>... --year Y --title T --venue V` | saves the first open PDF among the sources to the Downloads folder as `Y. T (V).pdf`; checks it is a real PDF; skips existing files |
 
 It exits with one `ERROR: …` line when a lookup fails; then fall back to the services below or WebSearch / WebFetch.
 

@@ -9,6 +9,8 @@
     researchtool.py github  <owner/repo> [--paper "<title>"] [--paper <arXiv id>] [--page <project page>]
                                                                 repo exists? README names the paper? page links the repo?
     researchtool.py bibtex  <venue page URL> [DOI] [arXiv id]   first link that shows BibTeX
+    researchtool.py download <venue page URL | PDF URL | arXiv id>... --year Y --title T --venue V [--dir DIR]
+                                                                save the first open PDF to Downloads as "Y. T (V).pdf"
     researchtool.py fulltext <arXiv id> [--out FILE]            arXiv HTML -> plain text file + outline
 
 Output is compact plain text. Errors print one "ERROR: ..." line and exit 1.
@@ -431,6 +433,98 @@ def cmd_bibtex(a):
     die("no BibTeX link verified. Tried: " + ("; ".join(tried) or "nothing usable in the refs given"))
 
 
+def downloads_dir():
+    """The user's Downloads folder, including a relocated one on Windows."""
+    if os.name == "nt":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders") as k:
+                path = os.path.expandvars(winreg.QueryValueEx(k, "{374DE290-123F-4565-9164-39C4925E467B}")[0])
+                if os.path.isdir(path):
+                    return path
+        except OSError:
+            pass
+    xdg = os.path.join(os.path.expanduser("~"), ".config", "user-dirs.dirs")
+    if os.path.isfile(xdg):
+        m = re.search(r'XDG_DOWNLOAD_DIR="([^"]+)"', open(xdg, encoding="utf-8").read())
+        if m:
+            path = os.path.expandvars(m.group(1).replace("$HOME", os.path.expanduser("~")))
+            if os.path.isdir(path):
+                return path
+    return os.path.join(os.path.expanduser("~"), "Downloads")
+
+
+def safe_filename(name):
+    name = re.sub(r"\s*:\s*", " - ", name)
+    name = re.sub(r'[<>"/\\|?*\x00-\x1f]', "", name)
+    name = re.sub(r"\s+", " ", name).strip().rstrip(".")
+    return name[:200]
+
+
+def fetch_bytes(url):
+    req = urllib.request.Request(url, headers={"User-Agent": UA_BROWSER})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return r.status, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, b""
+    except (urllib.error.URLError, TimeoutError, ConnectionError):
+        return 0, b""
+
+
+def pdf_candidates(ref):
+    """Open PDF URLs for one reference, best first: the venue's own PDF, then arXiv."""
+    ref = ref.strip()
+    m = ARXIV_ID.search(ref)
+    if ARXIV_ID.fullmatch(ref) or (m and "arxiv.org" in ref):
+        yield "https://arxiv.org/pdf/" + m.group(1)
+        return
+    d = DOI.search(ref)
+    if d and not ref.startswith("http"):
+        ref = "https://doi.org/" + d.group(1)  # open publishers expose citation_pdf_url on the landing page
+    if not ref.startswith("http"):
+        return
+    if ref.lower().split("?")[0].endswith(".pdf"):
+        yield ref
+        return
+    status, body = fetch(ref, browser=True)
+    if status != 200:
+        return
+    for pat in (r'<meta[^>]+name="citation_pdf_url"[^>]+content="([^"]+)"',
+                r'<meta[^>]+content="([^"]+)"[^>]+name="citation_pdf_url"'):
+        mm = re.search(pat, body, re.I)
+        if mm:
+            yield urllib.parse.urljoin(ref, html.unescape(mm.group(1)))
+            return
+    for href in re.findall(r'href="([^"]+\.pdf)"', body, re.I):
+        if "supplement" not in href.lower():
+            yield urllib.parse.urljoin(ref, html.unescape(href))
+            return
+
+
+def cmd_download(a):
+    """Save the first open PDF among the sources as '<year>. <title> (<venue>).pdf'."""
+    folder = os.path.normpath(a.dir or downloads_dir())
+    os.makedirs(folder, exist_ok=True)
+    name = safe_filename("%s. %s (%s)" % (a.year, a.title, a.venue)) + ".pdf"
+    path = os.path.join(folder, name)
+    if os.path.exists(path):
+        print("exists, skipped: " + path)
+        return
+    tried = []
+    for ref in a.sources:
+        for url in pdf_candidates(ref):
+            status, data = fetch_bytes(url)
+            if status == 200 and data[:5] == b"%PDF-":
+                with open(path, "wb") as f:
+                    f.write(data)
+                print("saved: %s · %.1f MB · from %s" % (path, len(data) / 1e6, url))
+                return
+            tried.append("%s (%s)" % (url, "not a PDF" if status == 200 else "HTTP %s" % status))
+    die("no open PDF found — the paper may be paywalled. Tried: " + ("; ".join(tried) or "no PDF link in the sources given"))
+
+
 def cmd_fulltext(a):
     m = ARXIV_ID.search(a.ref)
     if not m:
@@ -468,12 +562,14 @@ def main():
     s = sub.add_parser("venue-url"); s.add_argument("title"); s.add_argument("conf", help="e.g. CVPR2024, ICCV2023")
     s = sub.add_parser("github"); s.add_argument("repo"); s.add_argument("--paper", action="append", default=[], help="title or arXiv id; repeatable"); s.add_argument("--page", help="project / venue page that should link the repo")
     s = sub.add_parser("bibtex"); s.add_argument("refs", nargs="+")
+    s = sub.add_parser("download"); s.add_argument("sources", nargs="+", help="venue page URL, PDF URL, or arXiv id — best first")
+    s.add_argument("--year", required=True); s.add_argument("--title", required=True); s.add_argument("--venue", required=True); s.add_argument("--dir")
     s = sub.add_parser("fulltext"); s.add_argument("ref"); s.add_argument("--out")
     a = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     {"search": cmd_search, "meta": cmd_meta, "cites": cmd_cites, "page": cmd_page, "venue-url": cmd_venue_url,
-     "github": cmd_github, "bibtex": cmd_bibtex, "fulltext": cmd_fulltext}[a.cmd](a)
+     "github": cmd_github, "bibtex": cmd_bibtex, "download": cmd_download, "fulltext": cmd_fulltext}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Research Pipeline Install Kit
 
-Two Claude Code commands for the literature: find the key papers on a topic, and analyze one paper in depth. Design: `research-pipeline.pdf`.
+Claude Code commands for the literature: find the key papers on a topic, analyze one paper in depth, and download papers as PDFs. Design: `research-pipeline.pdf`.
 
 ## Install
 
@@ -25,12 +25,14 @@ Safe to re-run to update. Saved lists and analyses in `.research/` are never tou
 ```
 /research-list-paper 3D Gaussian Splatting, since 2023
 /research-summary-paper https://arxiv.org/abs/2308.04079
+/research-download-paper SplaTAM
 ```
 
 | Command | Gives you | Saved to |
 | --- | --- | --- |
 | `/research-list-paper <topic>` | 10–15 key papers (foundational + recent) in a table: slide-ready citation, paper · code · BibTeX links, and a short summary each | `.research/lists/` |
 | `/research-summary-paper <paper>` | where the paper fits, its claims, the evidence for each, and its limitations | `.research/papers/` |
+| `/research-download-paper <paper>` | the PDF, named `<year>. <title> (<venue>).pdf` | your Downloads folder |
 
 Options go in plain words after the topic: `since 2023`, `top 10`, `foundational only`. A paper can be a title, arXiv ID or URL, DOI, or a local PDF path.
 
@@ -48,7 +50,7 @@ Everything works without keys. Semantic Scholar is often rate-limited without on
 ```
 <folder>/
 ├── CLAUDE.md                     research block (commands, language, integrity rules)
-├── .claude/commands/             research-list-paper.md, research-summary-paper.md
+├── .claude/commands/             research-list-paper.md, research-summary-paper.md, research-download-paper.md
 ├── .claude/skills/research-sources/   (+ scripts/researchtool.py)
 └── .research/lists/, .research/papers/
 ```

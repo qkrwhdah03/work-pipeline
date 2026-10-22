@@ -29,7 +29,7 @@ Copy-Item (Join-Path $Tpl "claude\commands\*") (Join-Path $Dot "commands") -Forc
 $SkillDest = Join-Path $Dot "skills\research-sources"
 if (Test-Path $SkillDest) { Remove-Item $SkillDest -Recurse -Force }
 Copy-Item (Join-Path $Tpl "claude\skills\research-sources") (Join-Path $Dot "skills") -Recurse -Force
-Write-Host "  [v] .claude/commands  (/research-list-paper, /research-summary-paper)"
+Write-Host "  [v] .claude/commands  (/research-list-paper, /research-summary-paper, /research-download-paper)"
 Write-Host "  [v] .claude/skills/research-sources"
 
 # --- .research/ : outputs, never touched if present ---

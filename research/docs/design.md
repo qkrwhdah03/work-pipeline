@@ -4,7 +4,7 @@
 
 ## Overview
 
-Two commands for reading the literature with Claude Code: one finds the papers that matter on a topic, the other takes a single paper apart.
+Three commands for reading the literature with Claude Code: one finds the papers that matter on a topic, one takes a single paper apart, and one downloads a paper's PDF with a clean file name.
 
 The problem both solve is trust. A literature answer is only useful if every paper in it is real, correctly attributed and worth reading, and if the analysis separates what the paper says from what the reader should think of it. So the pipeline is built around **trusted sources** and **verification before citation**.
 
@@ -12,6 +12,7 @@ The problem both solve is trust. A literature answer is only useful if every pap
 | --- | --- | --- |
 | `/research-list-paper` | a topic or keywords | `.research/lists/<date>-<topic>.md` — the key papers, foundational and recent |
 | `/research-summary-paper` | a title, arXiv ID, DOI or PDF | `.research/papers/<author><year>-<title>.md` — big picture, claims, evidence, limitations |
+| `/research-download-paper` | a title, link, arXiv ID, DOI, or numbers from the last list | `<Downloads>/<year>. <title> (<venue>).pdf` |
 
 ## Principles
 
@@ -39,6 +40,10 @@ flowchart TD
 Each entry is a table row: a slide-ready citation (`Kerbl et al., <Title> (SIGGRAPH 2023)`), links to the paper, the official code (or `—`) and a page that serves its BibTeX, why the paper is key, and a 2–3 sentence summary of the problem it tackles and how — or what it claims. An overview paragraph on top traces how the topic developed.
 
 Defaults: 10–15 papers, split between foundational work and the last ~2 years. The request can change the range, the count or the focus.
+
+## /research-download-paper
+
+Resolves each paper to its published title, venue and year (same checks as a list entry), then saves the PDF to the user's Downloads folder as `<year>. <title> (<venue>).pdf` — e.g. `2024. SplaTAM - Splat, Track & Map 3D Gaussians for Dense RGB-D SLAM (CVPR).pdf`. The venue's camera-ready PDF comes first, arXiv is the fallback; only open, legitimate copies are used. A paywalled paper with no open copy is reported with its link instead.
 
 ## /research-summary-paper
 
@@ -77,7 +82,7 @@ Anything that rests on a weaker source or couldn't be reached is written in the 
 
 Lookups run through `researchtool.py` in the skill's `scripts/` folder — search, metadata, citing works, venue pages, GitHub, BibTeX links and full text — so each run prints only what's needed instead of raw pages.
 
-The skill `research-sources` holds the shared rules: venue tiers, arXiv-only criteria, the verification table, link priority and lookup services. Both commands read it first.
+The skill `research-sources` holds the shared rules: venue tiers, arXiv-only criteria, the verification table, link priority and lookup services. Every command reads it first.
 
 Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Semantic Scholar APIs plus the venue sites (CVF Open Access, OpenReview, PMLR, NeurIPS proceedings, ACM DL). All work without keys; if `SEMANTIC_SCHOLAR_API_KEY` or `OPENALEX_API_KEY` is set, it is used. The pipeline never signs up for keys or sends the user's details anywhere.
 
@@ -89,7 +94,8 @@ Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Seman
 ├── .claude/
 │   ├── commands/
 │   │   ├── research-list-paper.md
-│   │   └── research-summary-paper.md
+│   │   ├── research-summary-paper.md
+│   │   └── research-download-paper.md
 │   └── skills/research-sources/       source & verification rules + scripts/researchtool.py
 └── .research/
     ├── lists/                         /research-list-paper output

@@ -5,8 +5,9 @@
 | --- | --- | --- |
 | `/research-list-paper <topic>` | Finds the key papers on a topic — foundational and recent, from trusted venues | `.research/lists/` |
 | `/research-summary-paper <paper>` | Analyzes one paper — big picture, claims, evidence, limitations | `.research/papers/` |
+| `/research-download-paper <paper>` | Saves the paper's PDF as `<year>. <title> (<venue>).pdf` — venue PDF first, arXiv as fallback, open copies only | Downloads folder |
 
-Source and verification rules live in `.claude/skills/research-sources/SKILL.md`. Both commands read it first.
+Source and verification rules live in `.claude/skills/research-sources/SKILL.md`. Every command reads it first.
 
 ### Language
 

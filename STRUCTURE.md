@@ -123,4 +123,4 @@ Installing must be safe to re-run. Updating uses the same command.
 | Name | What it does | Commands | Skills | Agents |
 | --- | --- | --- | --- | --- |
 | [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit. Optimization runs as a separate loop | `/dev` `/dev-optimize` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-e-optimizer` |
-| [research](research/docs/design.md) | Finds the key papers on a topic from trusted venues, and analyzes one paper: big picture, claims, evidence, limitations | `/research-list-paper` `/research-summary-paper` | `research-sources` | — |
+| [research](research/docs/design.md) | Finds the key papers on a topic from trusted venues, and analyzes one paper: big picture, claims, evidence, limitations; downloads PDFs | `/research-list-paper` `/research-summary-paper` `/research-download-paper` | `research-sources` | — |

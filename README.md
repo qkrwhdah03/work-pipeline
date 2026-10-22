@@ -9,7 +9,7 @@ Each pipeline is one folder. Its design doc explains how it works.
 | Pipeline | What it does | Commands |
 | --- | --- | --- |
 | [dev](dev/docs/design.md) | Takes one development request through design → code → test → docs → commit, keeping spec docs and unresolved items for the next request | `/dev` `/dev-optimize` `/dev-limitations` |
-| [research](research/docs/design.md) | Finds the key papers on a topic from trusted venues, and analyzes a single paper — claims, evidence, limitations — with every citation verified | `/research-list-paper` `/research-summary-paper` |
+| [research](research/docs/design.md) | Finds the key papers on a topic from trusted venues, and analyzes a single paper — claims, evidence, limitations — with every citation verified, and downloads papers as PDFs | `/research-list-paper` `/research-summary-paper` `/research-download-paper` |
 
 ## Install
 
