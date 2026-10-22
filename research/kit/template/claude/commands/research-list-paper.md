@@ -62,14 +62,16 @@ Read at least the abstract — and the introduction or conclusion when the abstr
 <one paragraph: how the topic developed — the founding idea, the main branches, and the current trend. Refer to papers by short name.>
 
 ## Foundational
-### <Title>
-<Venue> <Year> · [Paper](<link>) · [Code](<link>) or Code: —
-<why it's key, in a few words — e.g. "introduced the setting", "standard baseline"> · <citations, e.g. ~830, OpenAlex>
-<2–3 sentence summary>
+
+| # | Title | Venue | Links | Summary |
+| --- | --- | --- | --- | --- |
+| 1 | <Title> | <Venue> <Year> | [Paper](<link>) · [Code](<link>) | **<why it's key, a few words>** (<citations, e.g. ~830>) — <2–3 sentence summary> |
 
 ## Recent
-### <Title>
-...
+
+| # | Title | Venue | Links | Summary |
+| --- | --- | --- | --- | --- |
+| 1 | ... | | | |
 
 ---
 - Not verified, dropped: <n>
@@ -77,7 +79,7 @@ Read at least the abstract — and the introduction or conclusion when the abstr
 - Source notes: <citation source and date; anything resting on a weaker source>
 ```
 
-Order papers by year within each section. Mark arXiv-only papers `arXiv <year> (preprint — <reason>)`.
+Order papers by year within each section. In the Venue cell, mark arXiv-only papers `arXiv <year> (preprint — <reason>)`. Write `Code: —` in the Links cell when there is no official code. Keep each cell on one line — no line breaks, and escape any `|` inside a cell as `\|`. Citation counts come from the source named in the source notes.
 
 ## 7. Save
 
