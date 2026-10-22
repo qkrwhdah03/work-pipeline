@@ -553,6 +553,8 @@ def cmd_fulltext(a):
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("search"); s.add_argument("query"); s.add_argument("--n", type=int, default=10); s.add_argument("--since", type=int)
@@ -566,8 +568,6 @@ def main():
     s.add_argument("--year", required=True); s.add_argument("--title", required=True); s.add_argument("--venue", required=True); s.add_argument("--dir")
     s = sub.add_parser("fulltext"); s.add_argument("ref"); s.add_argument("--out")
     a = ap.parse_args()
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
     {"search": cmd_search, "meta": cmd_meta, "cites": cmd_cites, "page": cmd_page, "venue-url": cmd_venue_url,
      "github": cmd_github, "bibtex": cmd_bibtex, "download": cmd_download, "fulltext": cmd_fulltext}[a.cmd](a)
 

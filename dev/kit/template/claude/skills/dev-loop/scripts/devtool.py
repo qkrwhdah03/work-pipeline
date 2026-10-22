@@ -148,6 +148,8 @@ def cmd_test(a):
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("preflight"); s.add_argument("--no-loop", action="store_true")
@@ -155,8 +157,6 @@ def main():
     s = sub.add_parser("prune-loops"); s.add_argument("--keep", type=int, default=10)
     s = sub.add_parser("test"); s.add_argument("--loop"); s.add_argument("--max-lines", type=int, default=60); s.add_argument("command", nargs=argparse.REMAINDER)
     a = ap.parse_args()
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
     {"preflight": cmd_preflight, "devlog": cmd_devlog, "prune-loops": cmd_prune, "test": cmd_test}[a.cmd](a)
 
 
