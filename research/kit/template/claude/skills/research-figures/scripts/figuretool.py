@@ -632,8 +632,15 @@ def check_overlaps(s):
             if b["ok"] or (b["id"] and b["id"] in g["ends"]):
                 continue
             r = b["rect"]
+            inner = shrink(r, 0.02)
             if near(g["p1"], r) or near(g["p2"], r):
-                continue  # starts or ends on this shape (given as coordinates instead of an anchor)
+                # Starting or ending on the edge and leaving outward is fine (coordinates instead of an anchor);
+                # running across the shape is not — e.g. an arrow drawn from the last token's LEFT edge, over the token.
+                if seg_hits(g["p1"], g["p2"], inner):
+                    out.append("overlap: an arrow/line %s %s and runs across it — attach it to the facing edge instead: "
+                               "give the shape an id (in a repeat: \"tok{i}\") and use \"<id>.right\" etc."
+                               % ("starts on" if near(g["p1"], r) else "ends on", b["name"]))
+                continue
             if contains(r, (min(g["p1"][0], g["p2"][0]), min(g["p1"][1], g["p2"][1]),
                             max(g["p1"][0], g["p2"][0]), max(g["p1"][1], g["p2"][1]))):
                 continue  # runs inside a panel or background
