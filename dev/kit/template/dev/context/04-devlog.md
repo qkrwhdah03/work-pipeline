@@ -7,10 +7,10 @@
 <!-- Consumed by A (behavior-changing). One line per item. Linked spec IDs in parentheses. -->
 
 ## Optimization Targets
-<!-- Consumed by E (behavior-preserving). D only records here and never invokes E directly. -->
+<!-- Consumed by E (behavior-preserving). D only records; /dev runs E itself after a passed loop once 3+ items pile up or one is marked [high]. -->
 
 ## Loop Log
-<!-- One line per loop. Record failed loops too. -->
+<!-- One line per loop. Record failed loops too. Rows beyond the latest 20 are moved to .dev/archive/loop-log.md by compaction. -->
 
 | Loop | Request | Result | Match verdict |
 | --- | --- | --- | --- |

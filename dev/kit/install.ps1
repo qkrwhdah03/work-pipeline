@@ -35,8 +35,8 @@ $SkillDest = Join-Path $Dot "skills\dev-loop"
 if (Test-Path $SkillDest) { Remove-Item $SkillDest -Recurse -Force }
 Copy-Item (Join-Path $Tpl "claude\skills\dev-loop") (Join-Path $Dot "skills") -Recurse -Force
 Copy-Item (Join-Path $Tpl "claude\hooks.optional.json") $Dot -Force
-Write-Host "  [v] .claude/agents  (5 agents, A~E)"
-Write-Host "  [v] .claude/commands  (/dev, /dev-optimize, /dev-limitations)"
+Write-Host "  [v] .claude/agents  (6 agents, A~F)"
+Write-Host "  [v] .claude/commands  (/dev, /dev-optimize, /dev-optimize-memory, /dev-limitations)"
 Write-Host "  [v] .claude/skills/dev-loop"
 
 # --- .dev/ : left untouched if already present (these are state files) ---

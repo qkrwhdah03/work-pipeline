@@ -19,8 +19,8 @@ rm -f "$TARGET/.claude/commands/optimize.md" "$TARGET/.claude/commands/limitatio
 rm -rf "$TARGET/.claude/skills/dev-loop"
 cp -R  "$TPL/claude/skills/dev-loop" "$TARGET/.claude/skills/"
 cp -f  "$TPL/claude/hooks.optional.json" "$TARGET/.claude/"
-echo "  [v] .claude/agents  (5 agents, A~E)"
-echo "  [v] .claude/commands  (/dev, /dev-optimize, /dev-limitations)"
+echo "  [v] .claude/agents  (6 agents, A~F)"
+echo "  [v] .claude/commands  (/dev, /dev-optimize, /dev-optimize-memory, /dev-limitations)"
 echo "  [v] .claude/skills/dev-loop"
 
 # --- .dev/ : existing files preserved ---

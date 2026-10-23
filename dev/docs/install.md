@@ -37,13 +37,14 @@ Safe to re-run. Existing documents in `.dev/context/` are preserved, and only th
 <project>/
 ├── CLAUDE.md                    loop rules (marker block) + project specifics
 ├── .claude/
-│   ├── agents/                  5 subagents A–E — the implementation of context isolation
+│   ├── agents/                  6 subagents A–F — the implementation of context isolation
 │   │   ├── dev-a-architect.md
 │   │   ├── dev-b-coder.md
 │   │   ├── dev-c-tester.md
 │   │   ├── dev-d-recorder.md
-│   │   └── dev-e-optimizer.md
-│   ├── commands/                /dev · /dev-optimize · /dev-limitations
+│   │   ├── dev-e-optimizer.md
+│   │   └── dev-f-compactor.md
+│   ├── commands/                /dev · /dev-optimize · /dev-optimize-memory · /dev-limitations
 │   ├── skills/dev-loop/         procedures · templates · doc update checklist · scripts/devtool.py
 │   └── hooks.optional.json      enforce tests before commit (off by default)
 └── .dev/
@@ -53,6 +54,8 @@ Safe to re-run. Existing documents in `.dev/context/` are preserved, and only th
     │   ├── 02-design.md
     │   ├── 03-architecture.md
     │   └── 04-devlog.md
+    ├── archive/                 old Loop Log rows moved out by compaction (not read by the loop)
+    ├── memory.json              context size after the last compaction
     ├── loops/                   volatile — last 10 only (gitignored)
     └── templates/               order-B · order-C · result formats
 ```
@@ -61,14 +64,14 @@ Safe to re-run. Existing documents in `.dev/context/` are preserved, and only th
 
 ## Why not a single skill
 
-Split four ways, exactly as mapped in the design doc. **Rules go in CLAUDE.md, procedures in skills, isolation in subagents, enforcement in hooks.**
+Split four ways, exactly as mapped in the design doc. **Always-needed rules go in CLAUDE.md, loop rules and procedures in skills, isolation in subagents, enforcement in hooks.**
 
 | Mechanism | Owns | Why |
 | --- | --- | --- |
-| **subagent** | A–E | Skills can't isolate context. If everything piles up in one conversation, tokens grow quadratically as the loop gets longer. Permission boundaries (B can't edit tests) also only hold with isolation. |
-| **command** | `/dev` `/dev-optimize` `/dev-limitations` | Explicit entry points. This is the switch that makes it run "only during development". |
-| **CLAUDE.md** | rules | Pins permission boundaries, commit conventions and stop conditions where they're always read. |
-| **skill** | procedures · templates | Long references read **only when needed**, such as document boundary rules and update checklists. |
+| **subagent** | A–F | Skills can't isolate context. If everything piles up in one conversation, tokens grow quadratically as the loop gets longer. Permission boundaries (B can't edit tests) also only hold with isolation. |
+| **command** | `/dev` `/dev-optimize` `/dev-optimize-memory` `/dev-limitations` | Explicit entry points. This is the switch that makes it run "only during development". |
+| **CLAUDE.md** | the always-on minimum | Read in every session and by every subagent, so it holds only when the loop runs and the language rule (~350 tokens). |
+| **skill** | loop rules · procedures · templates | Read **only when a loop runs**: doc boundaries, permissions, retries, stop conditions, commit format, update checklist. |
 
 ---
 
@@ -99,8 +102,9 @@ Wait       stop until the next request
 ```
 
 ```
-/dev-optimize        behavior-preserving refactor of the devlog's 'Optimization Targets' (manual only)
-/dev-limitations     view accumulated limitations / optimization targets
+/dev-optimize          behavior-preserving refactor of the devlog's 'Optimization Targets' (also automatic after a passed /dev at 3+ targets or one [high])
+/dev-optimize-memory   compact .dev/context — same meaning, fewer tokens (also automatic when it outgrows its budget)
+/dev-limitations       view accumulated limitations / optimization targets
 ```
 
 ---

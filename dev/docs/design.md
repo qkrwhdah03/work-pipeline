@@ -22,7 +22,7 @@ read context → order → execute → evaluate → limitations → update conte
 | Limitations | Analyze the whole run and surface unresolved items |
 | Update context | Update the spec documents + commit |
 
-Five agents split these steps, each reading only its own share in an independent context.
+Five agents split these steps, each reading only its own share in an independent context; a sixth (F) keeps the context docs compact.
 
 ## Core principles
 
@@ -83,7 +83,7 @@ When unsure, send it up (to A). A second look by A is cheaper than E oversteppin
 
 ## Agents
 
-Each of the five agents has an independent context. They are implemented as subagents.
+Each agent has an independent context. They are implemented as subagents.
 
 | | Role | Reads | Writes | Commits |
 | --- | --- | --- | --- | --- |
@@ -114,8 +114,12 @@ flowchart TD
     C --> T
     T -->|"fail · max 3"| B
     T -->|pass| D["D · Record<br/>analyze · update docs · commit"]
-    D --> W[Wait for next request]
-    D -.->|only when accumulated| E["E · Optimize<br/>separate loop · not every time"]
+    D --> H{"devtool auto"}
+    H -->|"optimize: yes"| E["E · Optimize<br/>behavior-preserving refactors"]
+    H -->|"compact: yes"| F["F · Compact memory<br/>same meaning, fewer tokens"]
+    E --> F
+    H -->|both no| W[Wait for next request]
+    F --> W
 ```
 
 C only needs A's acceptance criteria to write tests, so it doesn't wait for B. Tests standing first is what later lets E refactor safely.
@@ -137,11 +141,11 @@ Six limits keep the B↔C loop from spinning forever or burning tokens.
 
 ## E · Optimization loop
 
-E runs separately outside the main loop and never concurrently with it (they touch the same code, so they're serialized).
+E runs after a loop has committed — never concurrently with one (they touch the same code, so they're serialized).
 
 ```mermaid
 flowchart TD
-    TR["Trigger · /dev-optimize"] --> SEL["Select targets<br/>devlog · Optimization Targets"]
+    TR["Trigger · /dev-optimize, or /dev after a passed loop"] --> SEL["Select targets<br/>devlog · Optimization Targets"]
     SEL --> RF["Refactor<br/>public interfaces frozen"]
     RF --> Q{All existing tests pass?}
     Q -->|fail| RB["Roll back<br/>record cause, next item"]
@@ -165,7 +169,13 @@ There is one test. **If existing tests don't change by a single line, it's E; if
 - No limit on the number of targets. Several optimization targets recorded in the devlog can be handled in one run. Unrecorded wholesale refactoring is still forbidden.
 - No retries. Roll back immediately on failure.
 - If it seems 01-features · 02-design need changes, it's out of scope.
-- Triggered only by calling `/dev-optimize` manually. No automatic accumulation trigger. D only records optimization targets and never calls E directly.
+- Triggered by `/dev-optimize`, or **automatically** by `/dev` after a passed loop when `devtool.py auto` reports 3+ targets or one marked `[high]` (complexity that already gets in the way: a function over ~150 lines, the same logic in 3+ places, a module with 4+ responsibilities). D only records targets; the orchestrator decides from the count, so the trigger doesn't depend on judgment.
+
+## F · Memory compaction
+
+A and D read all of `.dev/context/` on every loop, so the docs' size is paid on every request, and it grows with the project. F rewrites them shorter **without changing their meaning**: prose becomes terse bullets, repeated explanations merge, resolved text that is already superseded goes, and Loop Log rows beyond the latest 20 move verbatim to `.dev/archive/loop-log.md` (not read by the loop). It never drops or renumbers a spec ID, never merges two open devlog items, and keeps every heading.
+
+`devtool.py memory-check` enforces this against HEAD — every spec ID (in context or archive), every heading and the open-item counts must survive, or F restores them or rolls back. The size after compaction is recorded in `.dev/memory.json`, and `/dev` runs F again only when the docs are over budget (~6000 tokens) **and** 25% larger than after the last compaction (or the Loop Log passes 20 rows) — so it doesn't churn on every loop. `/dev-optimize-memory` runs it on demand.
 
 ## Commit convention
 
@@ -203,14 +213,14 @@ When a mismatch is detected, A reads it first on the next request. The line of d
 
 | Mechanism | What it's given |
 | --- | --- |
-| CLAUDE.md | loop definition, document locations, commit conventions, permission boundaries |
-| Skill | per-role procedures, spec templates, doc update checklist |
-| Subagent | each of A–E — the implementation of context independence |
+| CLAUDE.md | only what must hold in every session: when the loop runs, the language rule, a pointer to the skill |
+| Skill | loop rules (doc boundaries, permissions, retries, stop conditions, commit format, housekeeping), spec templates, doc update checklist |
+| Subagent | each of A–F — the implementation of context independence |
 | Hook | enforce tests before commit, load 04-devlog at session start |
-| Script | `devtool.py` — preflight, devlog sections, loop pruning, and running tests with condensed output (saves tokens) |
-| Command | `/dev`, `/dev-optimize`, `/dev-limitations` |
+| Script | `devtool.py` — preflight, devlog sections, loop pruning, running tests with condensed output, and the numbers behind automatic E / F (`auto`, `memory`, `memory-check`) |
+| Command | `/dev`, `/dev-optimize`, `/dev-optimize-memory`, `/dev-limitations` |
 
-**Principle: rules in CLAUDE.md, procedures in skills, enforcement in hooks, isolation in subagents.**
+**Principle: always-needed rules in CLAUDE.md (kept short — it is read in every session and by every subagent), loop rules and procedures in skills, enforcement in hooks, isolation in subagents.**
 
 Two layers: the global level lays down only the loop structure, and each project's CLAUDE.md fills in the specifics (test command, directory locations, language · framework). If a project has no CLAUDE.md, A scans the repo on the first run and generates one automatically.
 
@@ -227,4 +237,5 @@ Settled decisions
 | `loops/` retention | last 10, the rest deleted automatically |
 | Project CLAUDE.md | if missing, A scans the repo and generates it on the first run |
 | Loop serialization | enforced by a clean git working tree check (no separate lock file) |
-| E trigger | `/dev-optimize` manual call only, no automatic accumulation trigger |
+| E trigger | `/dev-optimize`, or automatic after a passed loop at 3+ targets or one `[high]` |
+| F trigger | `/dev-optimize-memory`, or automatic after a passed loop when the context is over budget and has grown 25% since the last compaction |

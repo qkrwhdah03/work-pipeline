@@ -48,7 +48,8 @@ Record the two sections **strictly separately**.
 ```
 
 - When in doubt, **send it up (to limitations).** A taking one more look is cheaper than E overstepping.
-- Optimization targets are **recorded only. Do not call E directly.**
+- Optimization targets are **recorded only. Do not call E directly** — the orchestrator runs E after your commit when `devtool.py auto` says they have piled up.
+- Prefix a target with `[high]` when the complexity already gets in the way of the next change — e.g. a function over ~150 lines, the same logic in 3+ places, a module with 4+ responsibilities. One `[high]` item makes the next passed loop run E right away.
 - For existing limitations that were resolved, delete the line and leave the resolving loop ID.
 - Each item is one line. No long explanations. A pays the cost of reading them.
 

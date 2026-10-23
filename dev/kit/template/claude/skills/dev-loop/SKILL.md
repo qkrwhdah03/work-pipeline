@@ -1,6 +1,6 @@
 ---
 name: dev-loop
-description: Dev loop reference for this project — the .dev/context spec system and boundary rules, order/result file formats, 04-devlog routing, commit convention, and the doc-update checklist. Use when running a /dev or /dev-optimize loop, or when editing .dev/context/ docs directly. Do not use for general coding questions or work outside the loop.
+description: Dev loop reference for this project — the .dev/context spec system and boundary rules, permissions, retry limits and stop conditions, order/result file formats, 04-devlog routing, commit convention, automatic optimization and memory compaction, and the doc-update checklist. Use when running a /dev or /dev-optimize loop, or when editing .dev/context/ docs directly. Do not use for general coding questions or work outside the loop.
 user-invocable: false
 ---
 
@@ -9,8 +9,8 @@ user-invocable: false
 ## Loop
 
 ```
-read context → order(A) → execute(B) → evaluate(C) → limitations·record(D) → wait
-                                      └ E · optimization is a separate loop (/dev-optimize)
+read context → order(A) → execute(B) → evaluate(C) → limitations·record(D) → housekeeping → wait
+                                                                  └ E optimization / F memory compaction, when `devtool.py auto` says so
 ```
 
 Three principles explain every other design decision.
@@ -29,16 +29,23 @@ Three principles explain every other design decision.
 | `devlog [limitations\|optimization\|log\|all] [--count]` | prints 04-devlog sections, or just their item counts |
 | `prune-loops [--keep 10]` | deletes the oldest loop folders |
 | `test [--loop LOOP_ID] -- <test command>` | runs the tests; prints exit code, summary and failure lines only; full log to `.dev/loops/<LOOP_ID>/test.log` |
+| `auto [--budget 6000] [--min-targets 3]` | after a passed loop: `optimize: yes/no` (3+ optimization targets, or one marked `[high]`) and `compact: yes/no` (context over budget and 25%+ larger than after the last compaction, or Loop Log over 20 rows) |
+| `memory [--budget 6000]` | context size per file (~tokens) and the compaction verdict |
+| `memory-check [--record]` | after compacting: every spec ID, heading and open devlog item of HEAD is still there; `--record` stores the new size in `.dev/memory.json` |
 
 Always run tests through `test` — raw test output is the biggest token cost in a loop.
 
-## Spec Doc Boundary Rules
+## Docs = State
+
+There is no separate context store: the files in `.dev/context/` are the project's state. `.dev/loops/` is volatile (order files between agents, latest 10 kept); `.dev/archive/` holds history moved out by compaction and is not read by the loop.
 
 | Doc | Question | Changes when |
 | --- | --- | --- |
+| `00-project` | Where does it run | Accounts, repos, environments — **secrets by reference only, never values** |
 | `01-features` | What can it do | What the user wants changes |
 | `02-design` | How does it look | The way it looks changes |
 | `03-architecture` | How does it work | The implementation approach changes |
+| `04-devlog` | What's left | Every loop |
 
 **"It happens" is a feature, "it looks like this" is design, "it's built this way" is architecture.**
 
@@ -65,6 +72,40 @@ Examples for borderline calls:
 **When unsure, route it up (to A).** A taking one more look is cheaper than E overstepping.
 
 Rule of thumb: **if not a single line of existing tests changes, it's E; if tests must change, it's A.**
+
+## Permission Boundaries
+
+| | Role | Writes | Commits |
+| --- | --- | --- | --- |
+| A `dev-a-architect` | Grasp intent → translate into design, distribute work | order-B, order-C | — |
+| B `dev-b-coder` | Modify code | Source code | — |
+| C `dev-c-tester` | Write, run, and judge tests | Test code, result | — |
+| D `dev-d-recorder` | Analyze → derive limitations, update docs | All of `.dev/context/` | ✓ |
+| E `dev-e-optimizer` | Refactor, behavior-preserving | Source code, 03-architecture, devlog targets | ✓ |
+| F `dev-f-compactor` | Compact the context docs, meaning-preserving | `.dev/context/`, `.dev/archive/`, `.dev/memory.json` | ✓ |
+
+- **B cannot modify test code.** Only C may modify tests, and C also delivers the verdict.
+- **E does not touch 01-features or 02-design.** F changes wording only, never content.
+- **Only D, E and F commit.**
+
+## Retry Limits and Stop Conditions
+
+Max 3 attempts · pass failures on as a summary only (test name + assertion diff + file:line) · stop immediately if the same failure occurs twice in a row · **do not commit when retries are exhausted.**
+
+Stop the loop and report to the user — don't proceed — when:
+
+- A is not confident about the intent (it forks into multiple designs / conflicts with existing specs / the scope can't be stated in one line)
+- Schema migrations, mass deletions, major dependency upgrades, breaking changes to public APIs
+- The git working tree is not clean (loops are serialized)
+
+## Housekeeping — automatic E and F
+
+After a **passed** loop has committed, the orchestrator runs `devtool.py auto` and acts on it — numbers decide, not judgment:
+
+- `optimize: yes` → E with `Target: all`. D marks a target `[high]` when the complexity already gets in the way of the next change (a function over ~150 lines, the same logic in 3+ places, a module with 4+ responsibilities); one `[high]` is enough.
+- `compact: yes` → F, after E. Every loop A and D read all of `.dev/context/`, so its size is paid on every request; F shortens the wording, `memory-check` proves nothing was lost, and the size is recorded so the next compaction waits for real growth.
+
+Never after a failed loop (the tree isn't clean), never more than once per `/dev`. `/dev-optimize` and `/dev-optimize-memory` run them on demand.
 
 ## order / result Formats
 

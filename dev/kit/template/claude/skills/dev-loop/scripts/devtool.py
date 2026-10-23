@@ -6,10 +6,14 @@ Run from the project root.
     devtool.py devlog [limitations|optimization|log|all] [--count]   print 04-devlog sections
     devtool.py prune-loops [--keep 10]      delete the oldest loop folders
     devtool.py test [--loop LOOP_ID] -- <test command>   run tests; print a condensed result, full log to a file
+    devtool.py memory [--budget 6000]       size of .dev/context (~tokens per file) and whether to compact it
+    devtool.py memory-check [--record]      after compacting: nothing lost vs. HEAD (spec IDs, headings, open items)
+    devtool.py auto [--budget 6000] [--min-targets 3]   after a passed loop: run optimization (E) / compaction (F)?
 
 Output is compact plain text. Errors print one "ERROR: ..." line and exit 1.
 """
 import argparse
+import json
 import os
 import re
 import shutil
@@ -21,6 +25,11 @@ DEV = ".dev"
 LOOPS = os.path.join(DEV, "loops")
 DEVLOG = os.path.join(DEV, "context", "04-devlog.md")
 SECTIONS = {"limitations": "Limitations / Improvements", "optimization": "Optimization Targets", "log": "Loop Log"}
+CONTEXT = os.path.join(DEV, "context")
+ARCHIVE = os.path.join(DEV, "archive")      # moved-out history (old Loop Log rows); agents don't read it
+MEMORY = os.path.join(DEV, "memory.json")   # context size after the last compaction
+SPEC_ID = re.compile(r"\b[FDU]-\d{2,4}\b")
+KEEP_LOG_ROWS = 20
 
 
 def die(msg):
@@ -77,6 +86,13 @@ def sections(text):
     return out
 
 
+def items_in(body):
+    """List items and table rows (after header + separator) of one section."""
+    items = [l for l in body if re.match(r"^\s*([-*]|\d+[.)])\s+\S", l)]
+    rows = [l for l in body if l.lstrip().startswith("|")]
+    return items + rows[2:]
+
+
 def cmd_devlog(a):
     if not os.path.isfile(DEVLOG):
         die(DEVLOG + " not found.")
@@ -89,9 +105,7 @@ def cmd_devlog(a):
         if body is None:
             print("## %s — section missing" % name)
             continue
-        items = [l for l in body if re.match(r"^\s*([-*]|\d+[.)])\s+\S", l)]
-        rows = [l for l in body if l.lstrip().startswith("|")]
-        items += rows[2:]  # table rows after the header and separator
+        items = items_in(body)
         if a.count:
             print("%s: %d" % (name, len(items)))
             continue
@@ -147,6 +161,119 @@ def cmd_test(a):
     sys.exit(0)
 
 
+def tokens(text):
+    return len(text) // 4  # rough: ~4 characters per token for English
+
+
+def context_files():
+    if not os.path.isdir(CONTEXT):
+        die(CONTEXT + " not found.")
+    return sorted(os.path.join(CONTEXT, f) for f in os.listdir(CONTEXT) if f.endswith(".md"))
+
+
+def read(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def last_compaction():
+    try:
+        return json.loads(read(MEMORY)).get("tokens")
+    except (OSError, ValueError):
+        return None
+
+
+def memory_state(budget):
+    files = [(p, tokens(read(p))) for p in context_files()]
+    total = sum(t for _, t in files)
+    log_rows = len(items_in(sections(read(DEVLOG)).get(SECTIONS["log"], []))) if os.path.isfile(DEVLOG) else 0
+    last = last_compaction()
+    if log_rows > KEEP_LOG_ROWS:
+        why = "yes (Loop Log has %d rows, keep %d)" % (log_rows, KEEP_LOG_ROWS)
+    elif total <= budget:
+        why = "no (~%d tokens, budget %d)" % (total, budget)
+    elif last and total < last * 1.25:
+        why = "no (~%d tokens over budget %d, but < 25%% growth since the last compaction at ~%d)" % (total, budget, last)
+    else:
+        why = "yes (~%d tokens, budget %d%s)" % (total, budget, ", last compaction ~%d" % last if last else "")
+    return files, total, log_rows, why
+
+
+def cmd_memory(a):
+    files, total, log_rows, why = memory_state(a.budget)
+    for p, t in files:
+        print("  %-34s ~%5d tokens" % (os.path.basename(p), t))
+    print("total: ~%d tokens · Loop Log rows: %d · last compaction: %s" % (total, log_rows, last_compaction() or "never"))
+    print("compact: " + why)
+
+
+def head_text(path):
+    code, out = git("show", "HEAD:" + path.replace(os.sep, "/"))
+    return out if code == 0 else None
+
+
+def cmd_memory_check(a):
+    """Compare .dev/context (+ .dev/archive) with HEAD: every spec ID, every heading, every open devlog item survives."""
+    problems, before, after = [], 0, 0
+    now_ids = set()
+    for p in context_files() + ([os.path.join(ARCHIVE, f) for f in os.listdir(ARCHIVE)] if os.path.isdir(ARCHIVE) else []):
+        now_ids |= set(SPEC_ID.findall(read(p)))
+    for p in context_files():
+        old, new = head_text(p), read(p)
+        after += tokens(new)
+        if old is None:
+            continue  # new file
+        before += tokens(old)
+        name = os.path.basename(p)
+        lost = sorted(set(SPEC_ID.findall(old)) - now_ids)
+        if lost:
+            problems.append("%s: spec IDs gone: %s" % (name, ", ".join(lost)))
+        heads = lambda t: [l.strip() for l in t.splitlines() if re.match(r"^#{1,3}\s", l)]
+        gone = [h for h in heads(old) if h not in heads(new)]
+        if gone:
+            problems.append("%s: headings gone: %s" % (name, " | ".join(gone)))
+    for p in context_files():
+        old = head_text(p)
+        if old is None:
+            continue
+        for key in ("limitations", "optimization"):
+            n_old = len(items_in(sections(old).get(SECTIONS[key], [])))
+            n_new = len(items_in(sections(read(p)).get(SECTIONS[key], [])))
+            if n_new < n_old:
+                problems.append("%s: %s has %d items, was %d — open items are never merged or dropped"
+                                % (os.path.basename(p), SECTIONS[key], n_new, n_old))
+    for d in (CONTEXT, ARCHIVE):
+        code, out = git("status", "--porcelain", "--", d)
+        for l in out.splitlines():
+            if l[:2].strip() == "D":
+                problems.append("file deleted: " + l[3:])
+    print("tokens: ~%d -> ~%d (%+d%%)" % (before, after, round(100.0 * (after - before) / before) if before else 0))
+    if problems:
+        print("ERROR: compaction lost information:")
+        for x in problems:
+            print("  " + x)
+        sys.exit(1)
+    print("check: ok — all spec IDs, headings and open items kept")
+    if a.record:
+        with open(MEMORY, "w", encoding="utf-8") as f:
+            json.dump({"tokens": after, "date": time.strftime("%Y-%m-%d")}, f)
+            f.write("\n")
+        print("recorded: " + MEMORY)
+
+
+def cmd_auto(a):
+    """After a passed loop: should the orchestrator run E (optimization) and F (compaction)?"""
+    opt = items_in(sections(read(DEVLOG)).get(SECTIONS["optimization"], [])) if os.path.isfile(DEVLOG) else []
+    high = [l for l in opt if "[high]" in l.lower()]
+    if high:
+        print("optimize: yes (%d targets, %d [high])" % (len(opt), len(high)))
+    elif len(opt) >= a.min_targets:
+        print("optimize: yes (%d targets, threshold %d)" % (len(opt), a.min_targets))
+    else:
+        print("optimize: no (%d targets, threshold %d, no [high])" % (len(opt), a.min_targets))
+    print("compact: " + memory_state(a.budget)[3])
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -156,8 +283,12 @@ def main():
     s = sub.add_parser("devlog"); s.add_argument("which", nargs="?", default="all", choices=["limitations", "optimization", "log", "all"]); s.add_argument("--count", action="store_true")
     s = sub.add_parser("prune-loops"); s.add_argument("--keep", type=int, default=10)
     s = sub.add_parser("test"); s.add_argument("--loop"); s.add_argument("--max-lines", type=int, default=60); s.add_argument("command", nargs=argparse.REMAINDER)
+    s = sub.add_parser("memory"); s.add_argument("--budget", type=int, default=6000)
+    s = sub.add_parser("memory-check"); s.add_argument("--record", action="store_true")
+    s = sub.add_parser("auto"); s.add_argument("--budget", type=int, default=6000); s.add_argument("--min-targets", type=int, default=3)
     a = ap.parse_args()
-    {"preflight": cmd_preflight, "devlog": cmd_devlog, "prune-loops": cmd_prune, "test": cmd_test}[a.cmd](a)
+    {"preflight": cmd_preflight, "devlog": cmd_devlog, "prune-loops": cmd_prune, "test": cmd_test, "memory": cmd_memory,
+     "memory-check": cmd_memory_check, "auto": cmd_auto}[a.cmd](a)
 
 
 if __name__ == "__main__":

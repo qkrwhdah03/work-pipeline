@@ -43,6 +43,14 @@ The user starts a pipeline through its commands. Skills are internal references 
 - Anything the user should be able to run directly is a command (`commands/<name>-….md`), not a skill.
 - Never set `disable-model-invocation: true` on a pipeline skill — that does the opposite and hides it from Claude.
 
+**Context budget: what is always loaded stays minimal.**
+
+A pipeline's `CLAUDE.md` block is read in every session — research, chat, unrelated work — and again by every subagent it spawns, so each line there is paid many times over.
+
+- The block holds only what must apply in every session: when the pipeline runs (and when it must not), rules that also bind work outside its commands (e.g. language), and one line naming the skill that holds the rest. Aim for ~400 tokens or less.
+- Everything else — boundaries, permissions, retry limits, formats, checklists — lives in the pipeline's skill or agent files, read only when a command runs. Don't repeat a rule in both places.
+- Files that a pipeline re-reads on every run and that grow with use (context docs, logs) need a way to stay small without losing meaning — a compaction step with a deterministic check, like `/dev-optimize-memory`.
+
 **Permissions: pre-approve narrowly.**
 
 A command's `allowed-tools` lists exactly what it needs, so it runs without repeated approval prompts but can't do more than its job.
@@ -142,5 +150,5 @@ Installing must be safe to re-run. Updating uses the same command.
 
 | Name | What it does | Commands | Skills | Agents |
 | --- | --- | --- | --- | --- |
-| [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit. Optimization runs as a separate loop | `/dev` `/dev-optimize` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-e-optimizer` |
+| [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit; refactoring and context compaction follow automatically when due | `/dev` `/dev-optimize` `/dev-optimize-memory` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-f-compactor` |
 | [research](research/docs/design.md) | Finds the key papers on a topic from trusted venues, and analyzes one paper: big picture, claims, evidence, limitations; downloads PDFs; makes paper figures and booktabs tables as PPTX + PDF | `/research-list-paper` `/research-summary-paper` `/research-download-paper` `/research-figure` `/research-table` | `research-sources` `research-figures` | — |

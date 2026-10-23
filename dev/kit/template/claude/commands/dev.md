@@ -1,5 +1,5 @@
 ---
-description: One dev loop iteration — design translation (A) → implementation (B) ∥ tests (C) → verdict → record and commit (D)
+description: One dev loop iteration — design translation (A) → implementation (B) ∥ tests (C) → verdict → record and commit (D) → automatic optimization (E) / memory compaction (F) when due
 argument-hint: <dev request>
 allowed-tools: Task, Read, Glob, Grep, Bash(python3 .claude/skills/dev-loop/scripts/devtool.py:*), Bash(python .claude/skills/dev-loop/scripts/devtool.py:*)
 ---
@@ -82,7 +82,7 @@ OUTCOME: PASSED
 Retries: <n>
 ```
 
-D updates the documents and commits as **one loop = one commit**. Go to step 6.
+D updates the documents and commits as **one loop = one commit**. Go to step 6 (housekeeping).
 
 ---
 
@@ -97,13 +97,25 @@ Reason: retries exhausted | same failure twice in a row | B STUCK
 Blocked at: <C's last Failure Summary or B's STUCK report>
 ```
 
-D records the cause of failure in 04-devlog. Do not touch the working tree — the user decides whether to revert. Go to step 6.
+D records the cause of failure in 04-devlog. Do not touch the working tree — the user decides whether to revert. **Skip housekeeping** (the tree isn't clean); go to step 7.
 
 ---
 
-## 6. Report and wait
+## 6. Housekeeping (passed loops only)
 
-Tell the user only the following. Then **stop.** Wait for the next request. Do not continue with other work or call E.
+The loop's commit left the tree clean. Run `DT auto` — it decides from numbers, not judgment:
+
+- `optimize: yes` (optimization targets piled up, or one marked `[high]`) → call `subagent_type: dev-e-optimizer` with `Target: all`. E refactors behavior-preservingly, one item and one commit at a time, and rolls back anything that fails. Record its per-item STATUS lines for the report.
+- `compact: yes` (the context docs grew past their budget) → **after E**, call `subagent_type: dev-f-compactor` with `Trigger: auto`. F rewrites `.dev/context/` shorter without losing a fact, checks that with `DT memory-check`, and commits.
+- Both `no` → nothing to do.
+
+Never run these on a failed loop, and never more than once per `/dev`.
+
+---
+
+## 7. Report and wait
+
+Tell the user only the following. Then **stop.** Wait for the next request. Do not continue with other work.
 
 ```
 Loop <LOOP_ID> · <passed | failed>
@@ -116,6 +128,10 @@ Commit    <sha> <title>          ← on failure, 'no commit'
 
 Limitations carried over to the next loop
 - ...
+
+Housekeeping            ← only if step 6 ran something
+Optimize  <n> committed / <n> rolled back / <n> handed off to A
+Memory    ~<before> -> ~<after> tokens · <sha>
 ```
 
-If limitations have piled up, add one line saying they can be viewed with `/dev-limitations`. If optimization targets have piled up, **only suggest** `/dev-optimize` — do not call it yourself.
+If limitations have piled up, add one line saying they can be viewed with `/dev-limitations`.

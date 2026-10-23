@@ -1,15 +1,7 @@
 <!-- RESEARCH-PIPELINE:BEGIN (This block is managed by the install script. You may edit it, but reinstalling overwrites it) -->
 ## Research Pipeline
 
-| Command | Does | Saves to |
-| --- | --- | --- |
-| `/research-list-paper <topic>` | Finds the key papers on a topic — foundational and recent, from trusted venues | `.research/lists/` |
-| `/research-summary-paper <paper>` | Analyzes one paper — big picture, claims, evidence, limitations | `.research/papers/` |
-| `/research-download-paper <paper>` | Saves the paper's PDF as `<year>. <title> (<venue>).pdf` — venue PDF first, arXiv as fallback, open copies only; a `.txt` beside it holds the citation, links and BibTeX, and `index.txt` / `references.bib` collect them all | `.research/pdfs/` (or a folder you name) |
-| `/research-figure <description>` | Designs a paper figure that conveys the description — editable PPTX + PDF + PNG preview | `.research/figures/` |
-| `/research-table <data>` | Lays out results as a booktabs table with notes (`*`, `†`) under it — editable PPTX + PDF + PNG preview | `.research/tables/` |
-
-Source and verification rules live in `.claude/skills/research-sources/SKILL.md`; figure and table rules in `.claude/skills/research-figures/SKILL.md`. Each command reads the ones it needs first.
+`/research-list-paper`, `/research-summary-paper`, `/research-download-paper`, `/research-figure` and `/research-table` find, analyze and download papers and make figures and tables, saving under `.research/` (downloaded PDFs in `.research/pdfs/`, gitignored). Each command reads the skill it needs (`research-sources`, `research-figures`) — nothing else to load up front.
 
 ### Language
 
