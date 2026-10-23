@@ -12,7 +12,10 @@ Run: `python3 .claude/skills/research-figures/scripts/figuretool.py build <spec.
 ## Build loop
 
 1. Write the spec.
-2. `build` it. It prints the `.pptx`, `.pdf` and `.png` paths, the canvas size, and `warning:` lines for text that likely wraps or overflows its box — fix those first.
+2. `build` it. It prints the `.pptx`, `.pdf` and `.png` paths, the canvas size, and `warning:` lines — fix every one before looking further:
+   - **text that likely wraps or overflows** its box;
+   - **overlaps**: two shapes overlapping (a shape fully inside another — a panel or background — is fine), two pieces of text colliding, text crossing the edge of a shape, an arrow or line running through a shape or text it doesn't connect. Elements in a figure must not overlap unless that is the point (overlapping Gaussians, a splat drawn over a tile grid): mark those with `"overlap": true` on the element, or on a `group` / `repeat` to cover everything inside;
+   - **canvas problems** when the size is fixed (content cut off, or unused margins).
 3. **Read the `.png` preview** and check: text overflowing or clipped, overlapping elements, arrows that miss their targets, uneven spacing or misalignment, labels that are too small.
 4. Fix the spec and rebuild — at most 3 rounds. Report anything you couldn't fix.
 
@@ -27,7 +30,9 @@ Design at the size it will be printed, so font sizes are real.
 | ACM (SIGGRAPH / TOG) single · double column | 3.33 in · 7.0 in |
 | Single-column papers (NeurIPS, ICLR, ICML main text) | 5.5 in |
 
-Use `"size": "auto"` (the default) to crop the canvas to the content plus a small margin. When the width must be exact (a full-width figure at 6.875 in), set `"size": [w, h]`.
+**Margins are minimal on all four sides.** With `"size": "auto"` (the default) the canvas is cropped to the ink — shapes, lines, arrowheads and the text itself, not oversized text boxes — plus `margin` (default 0.03 in) on every side, wherever the elements were placed. When the width must be exact (full width at 6.875 in), use `"size": [6.875, "auto"]`: the height is still cropped and the content is centered horizontally; a warning says if it is cut off or leaves wide side margins. `"size": [w, h]` fixes both.
+
+PowerPoint can't store a slide under 1 in on a side, so a very small figure is saved proportionally enlarged; `build` then prints the real width to use in `\includegraphics`.
 
 ## Style rules
 
@@ -52,8 +57,8 @@ Use `"size": "auto"` (the default) to crop the canvas to the content plus a smal
 
 ```json
 {
-  "size": "auto",            // or [width, height] in inches
-  "margin": 0.05,            // with "auto"
+  "size": "auto",            // or [width, "auto"] or [width, height] in inches
+  "margin": 0.03,            // empty space kept on each side
   "font": "Arial",           // default font
   "fontsize": 8,             // default point size
   "elements": [ ... ]        // drawn in order; later elements are on top
@@ -75,7 +80,7 @@ The `//` comments above are explanations only — a real spec is plain JSON. Coo
 | `image` | `path` (PNG / JPEG, relative to the spec), `x`, `y`, `w` and/or `h` (aspect kept if one is given), `id`, `line` |
 | `table` | `x`, `y`, `columns`, `rows` (lists of cell strings, or the string `"midrule"`), `col_widths` (or `w`), `align` (per column: `l` `c` `r`), `header_groups` (`[{"text": "Mip-NeRF360", "span": [1, 3]}]` — column indices, 0-based, inclusive), `best` (per column `"max"`, `"min"` or `null` — the script bolds the best and underlines the second best, ties share the mark; cells you already marked are left alone), `second` (default `true`), `decimals` (per column, e.g. `[null, 2, 3]`), `notes` (lines under the table; several short notes can share a line), `font`, `size`, `row_h`, `bold_header`, `caption` |
 
-An element's `id` can be used as an arrow anchor only after the element is defined.
+An element's `id` can be used as an arrow anchor only after the element is defined. Any element, group or repeat takes `"overlap": true` to mark an intended overlap.
 
 **Example — pipeline overview**
 

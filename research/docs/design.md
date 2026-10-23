@@ -49,7 +49,7 @@ Resolves each paper to its published title, venue and year (same checks as a lis
 
 ## /research-figure and /research-table
 
-Both write a JSON spec and build it with `figuretool.py` (skill `research-figures`) into an **editable PPTX** — real PowerPoint shapes and tables, not a picture — plus a PDF for `\includegraphics` and a PNG preview. Claude reads the preview and fixes overlaps, clipping and misalignment before reporting (up to 3 rounds). The spec is kept, so later changes are small edits and a rebuild.
+Both write a JSON spec and build it with `figuretool.py` (skill `research-figures`) into an **editable PPTX** — real PowerPoint shapes and tables, not a picture — plus a PDF for `\includegraphics` and a PNG preview. The build crops the canvas to the ink with minimal margins on all four sides and warns about overlapping shapes, colliding text, arrows crossing unrelated elements and text that won't fit; Claude fixes every warning, then reads the preview for anything else before reporting (up to 3 rounds). Intended overlaps are marked explicitly. The spec is kept, so later changes are small edits and a rebuild.
 
 - **Figures** are sized for print (3.25 in single column, 6.875 in full width) with real font sizes (≥ 7 pt), a small colorblind-safe palette, and no decoration. Pipelines, concept comparisons, architectures, or data plots (matplotlib, placed as an image).
 - **Tables** follow booktabs: heavy top and bottom rules, a light rule under the header, trimmed rules under column groups, no vertical lines, best **bold** and second __underlined__ per column, `↑`/`↓` in headers, and footnotes (`*`, `†`, `‡`) on specific rows explained under the table.

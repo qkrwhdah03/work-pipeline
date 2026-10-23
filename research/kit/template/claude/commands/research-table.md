@@ -34,7 +34,7 @@ Reply in the user's language. Text **inside** the table (headers, method names, 
 
 1. Write the spec to `.research/tables/<YYYY-MM-DD>-<slug>/table.json`.
 2. `FT build .research/tables/<…>/table.json`
-3. Read `table.png` and fix what's wrong (skill's build loop, at most 3 rounds).
+3. Fix every `warning:` line, then read `table.png` and fix what else is wrong — skill's build loop, at most 3 rounds.
 
 ## 4. Report
 

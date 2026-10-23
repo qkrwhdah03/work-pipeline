@@ -11,6 +11,7 @@ Errors print one "ERROR: ..." line and exit 1.
 """
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -21,6 +22,7 @@ import zipfile
 from xml.sax.saxutils import escape
 
 EMU = 914400  # per inch
+SCALE = 1.0   # set by build when the canvas must be enlarged (PowerPoint needs at least 1 in per side)
 NS = ('xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
       'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"')
@@ -36,7 +38,7 @@ def die(msg):
 
 
 def emu(v):
-    return int(round(float(v) * EMU))
+    return int(round(float(v) * EMU * SCALE))
 
 
 def hexcolor(c, default="000000"):
@@ -73,7 +75,7 @@ def runs_xml(text, size, color, bold=False, italic=False, font=None):
             part, base = part[2:-1], -25000
         elif part.startswith("*") and part.endswith("*") and len(part) > 2:
             part, i = part[1:-1], True
-        attrs = 'lang="en-US" sz="%d" b="%d" i="%d"' % (int(size * 100), b, i)
+        attrs = 'lang="en-US" sz="%d" b="%d" i="%d"' % (int(size * 100 * SCALE), b, i)
         if u:
             attrs += ' u="sng"'
         if base:
@@ -90,7 +92,7 @@ def paragraphs_xml(text, size, color, align="ctr", bold=False, italic=False, fon
     paras = []
     for line in str(text).split("\n"):
         paras.append('<a:p><a:pPr algn="%s">%s</a:pPr>%s<a:endParaRPr lang="en-US" sz="%d"/></a:p>'
-                     % (algn, sp, runs_xml(line, size, color, bold, italic, font), int(size * 100)))
+                     % (algn, sp, runs_xml(line, size, color, bold, italic, font), int(size * 100 * SCALE)))
     return "".join(paras)
 
 
@@ -102,11 +104,28 @@ class Slide:
         self.font = spec.get("font", "Arial")
         self.size = float(spec.get("fontsize", 9))
         self.items, self.boxes, self.images, self.nid = [], {}, [], 2
-        self.extent = [0.0, 0.0]  # right-most x, bottom-most y — for "size": "auto"
+        self.bounds = None  # ink bounds [x1, y1, x2, y2] — for cropping the canvas
         self.warnings = []
+        self.shapes, self.texts, self.segments = [], [], []  # for the overlap check
 
-    def grow(self, x2, y2):
-        self.extent = [max(self.extent[0], x2), max(self.extent[1], y2)]
+    def grow(self, x1, y1, x2, y2):
+        b = self.bounds
+        self.bounds = [x1, y1, x2, y2] if b is None else [min(b[0], x1), min(b[1], y1), max(b[2], x2), max(b[3], y2)]
+
+    def text_ink(self, e, text, x, y, w, h, em):
+        """Estimated rectangle the text itself covers inside its box (em = average glyph width in em)."""
+        size = float(e.get("size", self.size))
+        pad = float(e.get("pad", 0.04))
+        lines = [MARKUP_ALL.sub(lambda m: next((g for g in m.groups() if g), ""), l) for l in str(text).split("\n")]
+        inner = max(w - 2 * pad, 0.01)
+        widths = [len(l) * size * em / 72 for l in lines]
+        n = sum(int(-(-wl // inner)) if wl > inner else 1 for wl in widths)  # wrapped line count
+        tw, th = min(max(widths), inner), n * size * 1.22 / 72
+        al = e.get("align", "center")
+        tx = x + pad if al in ("left", "l") else x + w - pad - tw if al in ("right", "r") else x + (w - tw) / 2
+        va = e.get("valign", "middle")
+        ty = y + pad if va == "top" else y + h - pad - th if va == "bottom" else y + (h - th) / 2
+        return (tx, ty, tx + tw, ty + th)
 
     def next_id(self):
         self.nid += 1
@@ -131,13 +150,25 @@ class Slide:
         hs = '<a:headEnd type="%s" w="med" len="med"/>' % head_start if head_start else ""
         he = '<a:tailEnd type="%s" w="med" len="med"/>' % head_end if head_end else ""
         return '<a:ln w="%d"><a:solidFill><a:srgbClr val="%s"/></a:solidFill>%s<a:round/>%s%s</a:ln>' % (
-            int(float(lw) * 12700), hexcolor(color), d, hs, he)
+            int(float(lw) * 12700 * SCALE), hexcolor(color), d, hs, he)
 
     def box(self, e, text_only=False):
         x, y, w, h = (float(e[k]) for k in ("x", "y", "w", "h"))
         if e.get("id"):
             self.boxes[e["id"]] = (x, y, w, h)
-        self.grow(x + w, y + h)
+        text = e.get("text", "")
+        name = e.get("id") or str(text).split("\n")[0][:28] or "%s at (%.2f, %.2f)" % (e.get("shape", "rect"), x, y)
+        if text_only:
+            if text:
+                self.grow(*self.text_ink(e, text, x, y, w, h, 0.6))
+                if not e.get("_internal"):
+                    self.texts.append({"name": name, "ink": self.text_ink(e, text, x, y, w, h, 0.48),
+                                       "ok": e.get("overlap", False), "owner": e.get("_owner")})
+        else:
+            r = rotated_bbox(x, y, w, h, float(e.get("rotate", 0) or 0))
+            lw = float(e.get("lw", 0.75)) / 72 / 2
+            self.grow(r[0] - lw, r[1] - lw, r[2] + lw, r[3] + lw)
+            self.shapes.append({"name": name, "id": e.get("id"), "rect": r, "ok": e.get("overlap", False)})
         geom = SHAPES.get(e.get("shape", "rect"))
         if geom is None:
             die("unknown shape %r (use %s)" % (e.get("shape"), ", ".join(SHAPES)))
@@ -156,7 +187,6 @@ class Slide:
         rot = ' rot="%d"' % int(float(e["rotate"]) * 60000) if e.get("rotate") else ""
         va = {"top": "t", "middle": "ctr", "center": "ctr", "bottom": "b"}.get(e.get("valign", "middle"), "ctr")
         inset = emu(e.get("pad", 0.04))
-        text = e.get("text", "")
         body = paragraphs_xml(text, float(e.get("size", self.size)), hexcolor(e.get("color"), "000000"),
                               e.get("align", "center"), e.get("bold", False), e.get("italic", False),
                               e.get("font", self.font), e.get("spacing"))
@@ -188,9 +218,12 @@ class Slide:
         if not text_only and len(lines) > 1 and tall > (h - 2 * pad) * 1.1:
             self.warnings.append("%s: %d lines need ~%.2f in, box is %.2f in tall — likely overflows" % (name, len(lines), tall, h - 2 * pad))
 
-    def segment(self, p1, p2, e, head_start=None, head_end=None):
+    def segment(self, p1, p2, e, head_start=None, head_end=None, ends=(), owner=None):
         (x1, y1), (x2, y2) = p1, p2
-        self.grow(max(x1, x2), max(y1, y2))
+        g = float(e.get("lw", 1)) / 72 * (3.5 if head_start or head_end else 0.5)  # arrowheads stick out
+        self.grow(min(x1, x2) - g, min(y1, y2) - g, max(x1, x2) + g, max(y1, y2) + g)
+        if not e.get("_internal"):
+            self.segments.append({"p1": p1, "p2": p2, "ends": set(ends), "ok": e.get("overlap", False), "owner": owner})
         flip = (' flipH="1"' if x2 < x1 else "") + (' flipV="1"' if y2 < y1 else "")
         sid = self.next_id()
         self.items.append(
@@ -204,11 +237,13 @@ class Slide:
         pts = [self.anchor(e["from"])] + [self.anchor(p) for p in e.get("via", [])] + [self.anchor(e["to"])]
         head = e.get("head", "end")
         kind = "triangle"
+        ends = [str(r).split(".")[0] for r in (e["from"], e["to"]) if isinstance(r, str)]
+        owner = id(e)
         for i in range(len(pts) - 1):
             first, last = i == 0, i == len(pts) - 2
             self.segment(pts[i], pts[i + 1], e,
                          kind if first and head in ("start", "both") else None,
-                         kind if last and head in ("end", "both") else None)
+                         kind if last and head in ("end", "both") else None, ends, owner)
         if e.get("label"):
             (x1, y1), (x2, y2) = pts[len(pts) // 2 - 1 if len(pts) > 2 else 0], pts[len(pts) // 2 if len(pts) > 2 else 1]
             mx, my = (x1 + x2) / 2, (y1 + y2) / 2
@@ -216,7 +251,8 @@ class Slide:
             dx, dy = e.get("label_offset", [0, -0.12])
             self.box({"x": mx - lw / 2 + dx, "y": my - lh / 2 + dy, "w": lw, "h": lh, "text": e["label"],
                       "size": e.get("label_size", self.size - 1), "italic": e.get("label_italic", False),
-                      "color": e.get("label_color", "#333333")}, text_only=True)
+                      "color": e.get("label_color", "#333333"), "_owner": owner,
+                      "overlap": e.get("overlap", False)}, text_only=True)
 
     def image(self, e, base_dir):
         path = os.path.join(base_dir, e["path"]) if not os.path.isabs(e["path"]) else e["path"]
@@ -235,7 +271,9 @@ class Slide:
             h = float(h) if h is not None else float(w) * ph / pw
         if e.get("id"):
             self.boxes[e["id"]] = (x, y, float(w), float(h))
-        self.grow(x + float(w), y + float(h))
+        self.grow(x, y, x + float(w), y + float(h))
+        self.shapes.append({"name": e.get("id") or os.path.basename(path), "id": e.get("id"),
+                            "rect": (x, y, x + float(w), y + float(h)), "ok": e.get("overlap", False)})
         rid = "rIdImg%d" % (len(self.images) + 1)
         self.images.append((rid, path, "jpeg" if ext == "jpg" else ext))
         sid = self.next_id()
@@ -293,7 +331,7 @@ class Slide:
             tag = {"top": "lnT", "bottom": "lnB", "left": "lnL", "right": "lnR"}[side]
             if not w:
                 return "<a:%s w=\"0\"><a:noFill/></a:%s>" % (tag, tag)
-            return '<a:%s w="%d"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:%s>' % (tag, int(w * 12700), tag)
+            return '<a:%s w="%d"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:%s>' % (tag, int(w * 12700 * SCALE), tag)
 
         group_spans = []
         if e.get("header_groups"):
@@ -325,7 +363,9 @@ class Slide:
                 col += span
             trs.append('<a:tr h="%d">%s</a:tr>' % (emu(row_h), "".join(tcs)))
         total_w, total_h = sum(widths), row_h * len(grid)
-        self.grow(x + total_w, y + total_h)
+        self.grow(x, y, x + total_w, y + total_h)
+        self.shapes.append({"name": e.get("id") or "table", "id": e.get("id"),
+                            "rect": (x, y, x + total_w, y + total_h), "ok": e.get("overlap", False)})
         if e.get("id"):
             self.boxes[e["id"]] = (x, y, total_w, total_h)
         sid = self.next_id()
@@ -345,7 +385,7 @@ class Slide:
                           "font": font, "bold": e.get("bold_header", False), "pad": 0.01, "_internal": True}, text_only=True)
                 if g.get("rule", True):
                     self.segment((gx + trim, y + row_h), (gx + gw - trim, y + row_h),
-                                 {"color": "#000000", "lw": light})
+                                 {"color": "#000000", "lw": light, "_internal": True})
         ny = y + total_h + 0.04
         if e.get("caption"):
             # Papers put table captions above; the caption box is placed above the table.
@@ -411,6 +451,114 @@ def mark_best(rows, best, second=True):
                 m = re.match(r"([-+]?\d+(?:\.\d+)?)(.*)", r[c].strip())
                 r[c] = marks[v] + m.group(1) + marks[v] + m.group(2) if m else r[c]
     return rows
+
+
+def rotated_bbox(x, y, w, h, deg):
+    if not deg:
+        return (x, y, x + w, y + h)
+    t = math.radians(deg)
+    c, s_ = abs(math.cos(t)), abs(math.sin(t))
+    bw, bh = w * c + h * s_, w * s_ + h * c
+    cx, cy = x + w / 2, y + h / 2
+    return (cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2)
+
+
+def inter(a, b, tol=0.01):
+    """True when rectangles a and b (x1, y1, x2, y2) overlap by more than tol in both directions."""
+    return min(a[2], b[2]) - max(a[0], b[0]) > tol and min(a[3], b[3]) - max(a[1], b[1]) > tol
+
+
+def contains(a, b, tol=0.01):
+    return a[0] - tol <= b[0] and a[1] - tol <= b[1] and b[2] <= a[2] + tol and b[3] <= a[3] + tol
+
+
+def shrink(r, d):
+    return (r[0] + d, r[1] + d, r[2] - d, r[3] - d)
+
+
+def seg_hits(p1, p2, r):
+    """Liang-Barsky: does segment p1-p2 pass through the inside of rectangle r?"""
+    (x1, y1), (x2, y2) = p1, p2
+    if r[2] <= r[0] or r[3] <= r[1]:
+        return False
+    dx, dy, t0, t1 = x2 - x1, y2 - y1, 0.0, 1.0
+    for p, q in ((-dx, x1 - r[0]), (dx, r[2] - x1), (-dy, y1 - r[1]), (dy, r[3] - y1)):
+        if p == 0:
+            if q < 0:
+                return False
+        else:
+            t = q / p
+            if p < 0:
+                t0 = max(t0, t)
+            else:
+                t1 = min(t1, t)
+            if t0 > t1:
+                return False
+    return t1 - t0 > 1e-6
+
+
+def seg_dist(px, py, p1, p2):
+    (x1, y1), (x2, y2) = p1, p2
+    dx, dy = x2 - x1, y2 - y1
+    L = dx * dx + dy * dy
+    t = 0.0 if L == 0 else max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / L))
+    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+
+
+def near(p, r, tol=0.03):
+    return r[0] - tol <= p[0] <= r[2] + tol and r[1] - tol <= p[1] <= r[3] + tol
+
+
+def check_overlaps(s):
+    """Warnings for shapes, labels and arrows that collide. A shape fully inside another (a panel or
+    background) is fine, and so is text fully inside a shape. Mark intended overlaps with "overlap": true."""
+    out = []
+    sh = s.shapes
+    for i in range(len(sh)):
+        for j in range(i + 1, len(sh)):
+            a, b = sh[i], sh[j]
+            if a["ok"] or b["ok"] or not inter(a["rect"], b["rect"]):
+                continue
+            if contains(a["rect"], b["rect"]) or contains(b["rect"], a["rect"]):
+                continue
+            out.append("overlap: %s and %s" % (a["name"], b["name"]))
+    tx = [t for t in s.texts if not t["ok"]]
+    for i in range(len(tx)):
+        for j in range(i + 1, len(tx)):
+            if inter(tx[i]["ink"], tx[j]["ink"]):
+                out.append("overlap: text %r and text %r" % (tx[i]["name"], tx[j]["name"]))
+    for t in tx:
+        for b in sh:
+            if b["ok"] or not inter(t["ink"], b["rect"]):
+                continue
+            if not contains(b["rect"], t["ink"]):
+                out.append("overlap: text %r crosses the edge of %s" % (t["name"], b["name"]))
+    for g in s.segments:
+        if g["ok"]:
+            continue
+        for b in sh:
+            if b["ok"] or (b["id"] and b["id"] in g["ends"]):
+                continue
+            r = b["rect"]
+            if near(g["p1"], r) or near(g["p2"], r):
+                continue  # starts or ends on this shape (given as coordinates instead of an anchor)
+            if contains(r, (min(g["p1"][0], g["p2"][0]), min(g["p1"][1], g["p2"][1]),
+                            max(g["p1"][0], g["p2"][0]), max(g["p1"][1], g["p2"][1]))):
+                continue  # runs inside a panel or background
+            if max(r[2] - r[0], r[3] - r[1]) <= 0.15 and \
+                    seg_dist((r[0] + r[2]) / 2, (r[1] + r[3]) / 2, g["p1"], g["p2"]) < 0.02:
+                continue  # a small marker placed on the line (sample points on a ray)
+            if seg_hits(g["p1"], g["p2"], shrink(r, 0.02)):
+                out.append("overlap: an arrow/line crosses %s" % b["name"])
+        for t in tx:
+            if seg_hits(g["p1"], g["p2"], shrink(t["ink"], 0.01)):
+                out.append("overlap: an arrow/line crosses text %r" % t["name"])
+    seen, uniq = set(), []
+    for w in out:
+        if w not in seen:
+            seen.add(w)
+            uniq.append(w)
+    return uniq
 
 
 def image_size(path):
@@ -572,21 +720,24 @@ def fill_index(v, i):
     return v
 
 
-def draw(s, elements, base_dir, dx, dy):
+def draw(s, elements, base_dir, dx, dy, overlap=False):
     for e in elements:
         t = e.get("type", "box")
+        ov = overlap or e.get("overlap", False)  # set on a group / repeat, it covers everything inside
         if t == "group":
             # local coordinates: children are placed relative to the group's x, y
-            draw(s, e.get("elements", []), base_dir, dx + float(e.get("x", 0)), dy + float(e.get("y", 0)))
+            draw(s, e.get("elements", []), base_dir, dx + float(e.get("x", 0)), dy + float(e.get("y", 0)), ov)
             continue
         if t == "repeat":
             # copies of "element" (or "elements"), the k-th moved by k*(dx, dy); "{i}" (0-based) and "{n}" (1-based) are filled in
             items = e.get("elements") or [e["element"]]
             for k in range(int(e["count"])):
                 draw(s, [fill_index(x, k) for x in items], base_dir,
-                     dx + k * float(e.get("dx", 0)), dy + k * float(e.get("dy", 0)))
+                     dx + k * float(e.get("dx", 0)), dy + k * float(e.get("dy", 0)), ov)
             continue
         e = shift(e, dx, dy)
+        if ov:
+            e["overlap"] = True
         if t == "box":
             s.box(e)
         elif t == "text":
@@ -609,15 +760,44 @@ def cmd_build(a):
             spec = json.load(f)
     except (OSError, ValueError) as e:
         die("cannot read spec: %s" % e)
-    auto = spec.get("size", "auto") == "auto"
-    s = Slide(spec)
     base_dir = os.path.dirname(os.path.abspath(a.spec))
-    draw(s, spec.get("elements", []), base_dir, 0.0, 0.0)
-    if auto:
-        m = float(spec.get("margin", 0.05))
-        w, h = s.extent[0] + m, s.extent[1] + m
+    size = spec.get("size", "auto")
+    m = float(spec.get("margin", 0.03))
+    probe = Slide(spec)  # first pass: measure the ink bounds
+    draw(probe, spec.get("elements", []), base_dir, 0.0, 0.0)
+    if probe.bounds is None:
+        die("the spec has no elements")
+    bx1, by1, bx2, by2 = probe.bounds
+    cw, ch = bx2 - bx1, by2 - by1
+    notes = []
+    fixed_w = "auto" if size == "auto" else size[0]
+    fixed_h = "auto" if size == "auto" else size[1]
+    if fixed_w == "auto":
+        w, dx = cw + 2 * m, m - bx1
     else:
-        w, h = (float(v) for v in spec["size"])
+        # Fixed width: center the content, so any spare width becomes equal side margins.
+        w = float(fixed_w)
+        dx = (w - cw) / 2 - bx1
+        if cw > w + 0.01:
+            notes.append("content is %.2f in wide but the canvas is %.2f in - it will be cut off; shrink or move elements" % (cw, w))
+        elif w - cw - 2 * m > 0.1:
+            notes.append("content is %.2f in wide on a %.2f in canvas - %.2f in of side margins; widen or spread the elements" % (cw, w, w - cw))
+    if fixed_h == "auto":
+        h, dy = ch + 2 * m, m - by1
+    else:
+        h = float(fixed_h)
+        dy = (h - ch) / 2 - by1
+        if ch > h + 0.01:
+            notes.append("content is %.2f in tall but the canvas is %.2f in - it will be cut off" % (ch, h))
+        elif h - ch - 2 * m > 0.1:
+            notes.append('%.2f in of empty top/bottom margins; use "size": [%s, "auto"] to crop them' % (h - ch, fixed_w))
+    # PowerPoint rejects slides under 1 in on a side, so small figures are drawn enlarged — every
+    # coordinate, font size and line width alike. Placed at the intended width, they print at true size.
+    global SCALE
+    SCALE = max(1.0, 1.0 / min(w, h))
+    s = Slide(spec)  # second pass: draw with the content moved to the margins
+    draw(s, spec.get("elements", []), base_dir, dx, dy)
+    s.warnings += notes + check_overlaps(s)
     out = os.path.abspath(a.out or os.path.splitext(a.spec)[0])
     pptx, pdf, png = out + ".pptx", out + ".pdf", out + ".png"
     for p in (pdf, png):
@@ -625,11 +805,16 @@ def cmd_build(a):
             os.remove(p)
     write_pptx(s, w, h, pptx)
     print("pptx: %s · %.2f x %.2f in" % (pptx, w, h))
-    for warn in s.warnings[:20]:
+    if SCALE > 1:
+        print("note: stored %.2fx larger (PowerPoint needs at least 1 in per side); place it at its real size, "
+              "e.g. \\includegraphics[width=%.2fin]{...}" % (SCALE, w))
+    for warn in s.warnings[:25]:
         print("warning: " + warn)
+    if len(s.warnings) > 25:
+        print("warning: ... and %d more" % (len(s.warnings) - 25))
     if a.no_pdf:
         return
-    err = convert(pptx, pdf, png, w, h)
+    err = convert(pptx, pdf, png, w * SCALE, h * SCALE)
     if err:
         print("pdf: not created — " + err)
         return

@@ -22,7 +22,7 @@ Reply in the user's language. Text **inside** the figure is in the language of t
   - **Concept / comparison** — side-by-side panels (ours vs. prior work, before vs. after), with short labels.
   - **Architecture** — modules, tensors and their shapes, skip connections.
   - **Data plot** — numbers over a variable (see "Data plots" in the skill).
-- Pick the width: single column (3.25 in) unless the content is wide — a long pipeline or several panels → full width (6.875 in). If the description names the venue, use its sizes.
+- Pick the width: single column (3.25 in) unless the content is wide — a long pipeline or several panels → full width (6.875 in, `"size": [6.875, "auto"]`). If the description names the venue, use its sizes.
 - If the description mentions a method or paper you have notes on (`.research/papers/`), read them for the correct stage names.
 - Only if the description is too vague to draw (no idea what the parts are), ask one short question.
 
@@ -30,7 +30,7 @@ Reply in the user's language. Text **inside** the figure is in the language of t
 
 1. Write the spec to `.research/figures/<YYYY-MM-DD>-<slug>/figure.json`.
 2. `FT build .research/figures/<…>/figure.json`
-3. Read `figure.png` and fix what's wrong (skill's build loop, at most 3 rounds).
+3. Fix every `warning:` line (wrapping text, overlaps, canvas), then read `figure.png` and fix what else is wrong — skill's build loop, at most 3 rounds. Nothing may overlap unless intended and marked `"overlap": true`; margins stay minimal (`"size": "auto"`, or `[6.875, "auto"]` for full width).
 
 Never put numbers in a figure that the user didn't give or that you didn't verify from a source.
 
