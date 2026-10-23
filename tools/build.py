@@ -72,7 +72,8 @@ document.fonts.ready.then(async () => {
 
 
 def find_chrome():
-    for c in CHROME_CANDIDATES:
+    # CHROME=<path> picks a browser that isn't installed system-wide (e.g. a downloaded Chromium)
+    for c in ([os.environ["CHROME"]] if os.environ.get("CHROME") else []) + CHROME_CANDIDATES:
         if os.path.isfile(c):
             return c
         try:

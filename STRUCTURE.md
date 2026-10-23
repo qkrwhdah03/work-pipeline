@@ -43,6 +43,15 @@ The user starts a pipeline through its commands. Skills are internal references 
 - Anything the user should be able to run directly is a command (`commands/<name>-….md`), not a skill.
 - Never set `disable-model-invocation: true` on a pipeline skill — that does the opposite and hides it from Claude.
 
+**Docs follow the change: a pipeline change is not done until its docs say so.**
+
+Whoever changes a pipeline — a person or Claude — updates its docs in the same change, without being asked:
+
+- `docs/design.md` (how and why it works) and `docs/install.md` (what gets installed, the command list) for anything they describe.
+- The kit's own text that describes the changed behavior: the CLAUDE snippet, skills, commands and agents that mention it.
+- `README.md` and the Pipelines table below when commands, agents or skills are added, renamed or removed; the Naming examples if they no longer hold.
+- Then rebuild: `python tools/build.py <name>` regenerates the kit zip **and** the design PDF. Commit `dist/` with the source. Without a system Chrome, point `CHROME=<path>` at any Chromium; never commit a change with a stale PDF silently — say so if it couldn't be rebuilt.
+
 **Context budget: what is always loaded stays minimal.**
 
 A pipeline's `CLAUDE.md` block is read in every session — research, chat, unrelated work — and again by every subagent it spawns, so each line there is paid many times over.
@@ -64,6 +73,7 @@ A command's `allowed-tools` lists exactly what it needs, so it runs without repe
 ```
 work-pipeline/
 ├── STRUCTURE.md              this document — layout, rules, pipeline list
+├── CLAUDE.md                 short pointer to these rules for Claude working in this repo
 ├── tools/
 │   └── build.py              builds the distributables (zip · PDF)
 │
@@ -97,7 +107,7 @@ python tools/build.py --all    # all of them
 ```
 
 - `kit/` + `docs/install.md` → `dist/<name>-pipeline-kit.zip` (top-level folder in the zip: `<name>-pipeline-kit/`)
-- `docs/design.md` → `dist/<name>-pipeline.pdf` (headless Chrome/Edge, renders mermaid diagrams, needs internet)
+- `docs/design.md` → `dist/<name>-pipeline.pdf` (headless Chrome/Edge, renders mermaid diagrams, needs internet). Without a system browser: `CHROME=<path to chromium> python tools/build.py <name>`
 
 Re-run the build after editing `docs/` or `kit/`.
 
