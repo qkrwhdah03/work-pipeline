@@ -26,7 +26,7 @@ Then open Claude Code in that project and use the pipeline's commands (for dev: 
 
 ## Language
 
-Pipeline files are in English. When you use a pipeline, it reports and writes docs in **your** language.
+Pipeline files are in English, and so is what a pipeline commits to your repository — code comments, context docs, commit messages. Replies and research notes are in **your** language.
 
 ## Layout
 

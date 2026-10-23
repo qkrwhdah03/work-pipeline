@@ -9,7 +9,9 @@ read context → order(A) → execute(B) → evaluate(C) → limitations·record
 
 ### Language
 
-The pipeline's own files (skill, agents, commands, templates) are in English. **Everything produced while using it follows the user's language** — the language of the `/dev` request: reports to the user, `.dev/context/` document content, order · result files, and commit messages (subject and body).
+The pipeline's own files (skill, agents, commands, templates) are in English. **Everything that goes into the repository is in English too**, whatever language the `/dev` request is in: `.dev/context/` documents (devlog included), `CLAUDE.md`, code comments, and commit messages (subject and body). Translate the request, intent and design; don't mix languages in these.
+
+Only what is not committed follows the user's language — the language of the `/dev` request: reports to the user, and the order · result files in `.dev/loops/` (gitignored).
 
 Keep these in English, because the pipeline looks them up: structural headings (`## Limitations / Improvements`, `## Optimization Targets`, `## Loop Log`, `## Project Specifics`, order · result template headings), STATUS codes, commit body field names (`Intent:`, `Design:`, …), the `loop:` trailer, and spec IDs.
 

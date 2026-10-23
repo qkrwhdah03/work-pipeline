@@ -100,6 +100,8 @@ Full logs, stack traces, build output, and lists of passing tests are **never** 
 
 **One loop = one commit.** Code + tests + docs as a single unit.
 
+**Everything committed is in English** — the commit message (subject and body, from D and E alike), `.dev/context/` docs, `CLAUDE.md` and code comments — whatever language the request and order files are in. Translate; don't quote non-English text.
+
 ```
 feat(auth): add social login
 

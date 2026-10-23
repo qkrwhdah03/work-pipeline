@@ -41,7 +41,7 @@ For the target items (those specified, or all of `## Optimization Targets` if no
    - **Pass** → step 5
    - **Fail** → **roll back immediately** (`git checkout -- <touched files>`). No retry. Record the cause as `(attempt failed: reason)` under that item in the devlog's `## Optimization Targets`, then move to the next item.
    - **If you conclude "this would only pass if the tests were changed"** → that is outside E's scope. Roll back, **move** that item in the devlog to `## Limitations / Improvements` (A's domain), then move to the next item.
-5. Update `03-architecture.md` to match the actual structure, and delete the handled item from the devlog. Commit **each item separately**.
+5. Update `03-architecture.md` to match the actual structure, and delete the handled item from the devlog. Commit **each item separately**, with the message in **English** (dev-loop skill: Commit Convention).
 
 ```
 refactor(auth): consolidate validation logic into AuthValidator

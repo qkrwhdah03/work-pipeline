@@ -68,7 +68,7 @@ Limits: token refresh not implemented -> devlog#14
 loop: <LOOP_ID>
 ```
 
-Take `Intent` and `Design` verbatim from order-B. Since there is no approval gate, **this is the only place where what A intended can be traced after the fact.** Do not omit them.
+Write the whole message in **English**, whatever language the request and order-B are in. Take `Intent` and `Design` from order-B — translated faithfully, nothing added or dropped — and quote the request in English too. Since there is no approval gate, **this is the only place where what A intended can be traced after the fact.** Do not omit them.
 
 Choose the prefix from `feat` / `fix` / `docs` / `chore` to match the nature of the change. Refactoring (`refactor`) is reserved for E.
 

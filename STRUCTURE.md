@@ -6,10 +6,12 @@ A collection of work pipelines for Claude Code (bundles of agents, commands and 
 
 These apply to every pipeline in this repository.
 
-**Language: the kit is English, usage follows the user's language.**
+**Language: the kit and what goes into the repository are English; everything else follows the user's language.**
 
 - Everything in this repository is written in English — docs, skills, agents, commands, templates, scripts, and the structural headings the pipelines look up.
-- What a pipeline produces while in use — reports to the user, context document content, order · result files, commit messages — is written in the user's language (the language of their request).
+- The rule of thumb: **what goes public, in the repository and its version history, is English; what the user reads is in the user's language.**
+- English, whatever language the request is in: code comments, context documents (`.dev/context/`), `CLAUDE.md`, and commit messages (subject and body). The pipeline translates the request and its own notes; it doesn't mix languages in these.
+- The user's language (the language of their request): replies and reports to the user, gitignored scratch files (`.dev/loops/` order · result files), and material written for the user to read in `.research/` (paper lists, summaries).
 - Identifiers the pipeline depends on stay in English even in the user's output: structural headings, STATUS codes, commit field names, trailers, spec IDs.
 - Each pipeline states this in a `### Language` section of its CLAUDE snippet, so it takes effect in the installed project.
 
