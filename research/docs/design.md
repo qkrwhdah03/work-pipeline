@@ -4,7 +4,7 @@
 
 ## Overview
 
-Three commands for reading the literature with Claude Code: one finds the papers that matter on a topic, one takes a single paper apart, and one downloads a paper's PDF with a clean file name.
+Commands for working with the literature in Claude Code: find the papers that matter on a topic, take a single paper apart, download a paper's PDF with a clean file name, and make the figures and results tables that go into your own paper.
 
 The problem both solve is trust. A literature answer is only useful if every paper in it is real, correctly attributed and worth reading, and if the analysis separates what the paper says from what the reader should think of it. So the pipeline is built around **trusted sources** and **verification before citation**.
 
@@ -13,6 +13,8 @@ The problem both solve is trust. A literature answer is only useful if every pap
 | `/research-list-paper` | a topic or keywords | `.research/lists/<date>-<topic>.md` — the key papers, foundational and recent |
 | `/research-summary-paper` | a title, arXiv ID, DOI or PDF | `.research/papers/<author><year>-<title>.md` — big picture, claims, evidence, limitations |
 | `/research-download-paper` | a title, link, arXiv ID, DOI, or numbers from the last list | `<Downloads>/<year>. <title> (<venue>).pdf` |
+| `/research-figure` | a description of what to show | `.research/figures/<date>-<slug>/figure.{json,pptx,pdf,png}` |
+| `/research-table` | data to organize — pasted, a CSV, or numbers from named papers | `.research/tables/<date>-<slug>/table.{json,pptx,pdf,png}` |
 
 ## Principles
 
@@ -44,6 +46,16 @@ Defaults: 10–15 papers, split between foundational work and the last ~2 years.
 ## /research-download-paper
 
 Resolves each paper to its published title, venue and year (same checks as a list entry), then saves the PDF to the user's Downloads folder as `<year>. <title> (<venue>).pdf` — e.g. `2024. SplaTAM - Splat, Track & Map 3D Gaussians for Dense RGB-D SLAM (CVPR).pdf`. The venue's camera-ready PDF comes first, arXiv is the fallback; only open, legitimate copies are used. A paywalled paper with no open copy is reported with its link instead.
+
+## /research-figure and /research-table
+
+Both write a JSON spec and build it with `figuretool.py` (skill `research-figures`) into an **editable PPTX** — real PowerPoint shapes and tables, not a picture — plus a PDF for `\includegraphics` and a PNG preview. Claude reads the preview and fixes overlaps, clipping and misalignment before reporting (up to 3 rounds). The spec is kept, so later changes are small edits and a rebuild.
+
+- **Figures** are sized for print (3.25 in single column, 6.875 in full width) with real font sizes (≥ 7 pt), a small colorblind-safe palette, and no decoration. Pipelines, concept comparisons, architectures, or data plots (matplotlib, placed as an image).
+- **Tables** follow booktabs: heavy top and bottom rules, a light rule under the header, trimmed rules under column groups, no vertical lines, best **bold** and second __underlined__ per column, `↑`/`↓` in headers, and footnotes (`*`, `†`, `‡`) on specific rows explained under the table.
+- Numbers in either come only from the user or from the paper's own text, with the source noted.
+
+PDF export uses PowerPoint (Windows COM) or LibreOffice; without them the PPTX is still produced.
 
 ## /research-summary-paper
 
@@ -95,11 +107,17 @@ Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Seman
 │   ├── commands/
 │   │   ├── research-list-paper.md
 │   │   ├── research-summary-paper.md
-│   │   └── research-download-paper.md
-│   └── skills/research-sources/       source & verification rules + scripts/researchtool.py
+│   │   ├── research-download-paper.md
+│   │   ├── research-figure.md
+│   │   └── research-table.md
+│   └── skills/
+│       ├── research-sources/          source & verification rules + scripts/researchtool.py
+│       └── research-figures/          figure & table rules + scripts/figuretool.py
 └── .research/
     ├── lists/                         /research-list-paper output
-    └── papers/                        /research-summary-paper output
+    ├── papers/                        /research-summary-paper output
+    ├── figures/                       /research-figure output
+    └── tables/                        /research-table output
 ```
 
 `/research-summary-paper` reads `.research/lists/` when placing a paper in its field, so earlier lists make later analyses better informed.

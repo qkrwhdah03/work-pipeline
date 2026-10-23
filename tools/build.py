@@ -9,6 +9,7 @@
 import io
 import json
 import os
+import pathlib
 import re
 import subprocess
 import sys
@@ -20,8 +21,12 @@ CHROME_CANDIDATES = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
     "google-chrome",
+    "google-chrome-stable",
     "chromium",
+    "chromium-browser",
+    "microsoft-edge",
 ]
 
 HTML = r'''<!doctype html>
@@ -89,7 +94,7 @@ def build_pdf(name, base, dist):
         io.open(page, "w", encoding="utf-8").write(html)
         subprocess.run([find_chrome(), "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
                         "--virtual-time-budget=20000", "--run-all-compositor-stages-before-draw",
-                        "--print-to-pdf=" + out, "file:///" + page.replace("\\", "/")],
+                        "--print-to-pdf=" + out, pathlib.Path(page).as_uri()],
                        capture_output=True, check=True)
     print("  [v]", os.path.relpath(out, ROOT))
 

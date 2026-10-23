@@ -14,7 +14,7 @@ Report progress in one line per stage. Do not spell out intermediate results at 
 
 ## 0. Preflight
 
-`DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (`python …` if `python3` isn't available), run from the project root.
+`DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run), run from the project root.
 
 Run `DT preflight`. It checks this is a git repo and **the working tree is clean** (this serializes loops, so E and the main loop never modify the same files at once), then creates `.dev/loops/<LOOP_ID>/` and prints `LOOP_ID: …`.
 

@@ -12,7 +12,7 @@ Explain this paper so the reader understands where it fits, how it works, what i
 
 Read `.claude/skills/research-sources/SKILL.md` first and follow it throughout — especially **verify before citing** and **keep "what the paper says" apart from "your assessment."**
 
-Do lookups with the skill's script instead of hand-written requests — `RT` below means `python3 .claude/skills/research-sources/scripts/researchtool.py` (`python …` if `python3` isn't available).
+Do lookups with the skill's script instead of hand-written requests — `RT` below means `python3 .claude/skills/research-sources/scripts/researchtool.py` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run).
 
 Write in the user's language (the language of their request). Paper titles, method names, dataset and metric names, and author names stay as published.
 

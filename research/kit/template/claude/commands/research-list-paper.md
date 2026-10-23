@@ -12,7 +12,7 @@ Build a list of the papers someone needs to understand this topic — both where
 
 Read `.claude/skills/research-sources/SKILL.md` first and follow it throughout: trusted venues, arXiv-only criteria, and **verify every field before it appears in the output.**
 
-Do lookups with the skill's script instead of hand-written requests — `RT` below means `python3 .claude/skills/research-sources/scripts/researchtool.py` (`python …` if `python3` isn't available).
+Do lookups with the skill's script instead of hand-written requests — `RT` below means `python3 .claude/skills/research-sources/scripts/researchtool.py` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run).
 
 Write the output in the user's language (the language of their request). Paper titles, venue names and author names stay as published.
 

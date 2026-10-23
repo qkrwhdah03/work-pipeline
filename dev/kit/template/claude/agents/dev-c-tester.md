@@ -21,7 +21,7 @@ The orchestrator specifies the mode.
 
 ### MODE: VERIFY
 
-1. Run the tests through the runner script — `python3 .claude/skills/dev-loop/scripts/devtool.py test --loop <LOOP_ID> -- <## Test Command from order-C>` (`python …` if `python3` isn't available). It prints the exit code, the pass/fail summary and only the failure lines, and saves the full log to `.dev/loops/<LOOP_ID>/test.log`; read specific lines of that log only if the condensed output isn't enough. If possible, run a narrowed scope first; if it passes, run the full suite to check for regressions.
+1. Run the tests through the runner script — `python3 .claude/skills/dev-loop/scripts/devtool.py test --loop <LOOP_ID> -- <## Test Command from order-C>` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run). It prints the exit code, the pass/fail summary and only the failure lines, and saves the full log to `.dev/loops/<LOOP_ID>/test.log`; read specific lines of that log only if the condensed output isn't enough. If possible, run a narrowed scope first; if it passes, run the full suite to check for regressions.
 2. Make the verdict.
 3. Write `.dev/loops/<LOOP_ID>/result.md`.
 

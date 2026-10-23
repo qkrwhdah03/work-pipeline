@@ -10,7 +10,7 @@ Save each paper's PDF to the user's Downloads folder, named `<Year>. <Title> (<V
 
 ## 0. Rules
 
-Read `.claude/skills/research-sources/SKILL.md` first. `RT` below means `python3 .claude/skills/research-sources/scripts/researchtool.py` (`python …` if `python3` isn't available).
+Read `.claude/skills/research-sources/SKILL.md` first. `RT` below means `python3 .claude/skills/research-sources/scripts/researchtool.py` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run).
 
 Reply in the user's language.
 

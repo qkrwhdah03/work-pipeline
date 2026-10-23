@@ -26,16 +26,19 @@ New-Item -ItemType Directory -Force -Path (Join-Path $Dot "commands") | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $Dot "skills")   | Out-Null
 
 Copy-Item (Join-Path $Tpl "claude\commands\*") (Join-Path $Dot "commands") -Force
-$SkillDest = Join-Path $Dot "skills\research-sources"
-if (Test-Path $SkillDest) { Remove-Item $SkillDest -Recurse -Force }
-Copy-Item (Join-Path $Tpl "claude\skills\research-sources") (Join-Path $Dot "skills") -Recurse -Force
-Write-Host "  [v] .claude/commands  (/research-list-paper, /research-summary-paper, /research-download-paper)"
-Write-Host "  [v] .claude/skills/research-sources"
+foreach ($S in "research-sources", "research-figures") {
+  $SkillDest = Join-Path $Dot "skills\$S"
+  if (Test-Path $SkillDest) { Remove-Item $SkillDest -Recurse -Force }
+  Copy-Item (Join-Path $Tpl "claude\skills\$S") (Join-Path $Dot "skills") -Recurse -Force
+}
+Write-Host "  [v] .claude/commands  (/research-list-paper, /research-summary-paper, /research-download-paper, /research-figure, /research-table)"
+Write-Host "  [v] .claude/skills/research-sources, research-figures"
 
 # --- .research/ : outputs, never touched if present ---
-New-Item -ItemType Directory -Force -Path (Join-Path $Target ".research\lists")  | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $Target ".research\papers") | Out-Null
-Write-Host "  [v] .research/  (lists/, papers/)"
+foreach ($D in "lists", "papers", "figures", "tables") {
+  New-Item -ItemType Directory -Force -Path (Join-Path $Target ".research\$D") | Out-Null
+}
+Write-Host "  [v] .research/  (lists/, papers/, figures/, tables/)"
 
 # --- CLAUDE.md : replace only the marker block, preserve the rest ---
 $ClaudeMd = Join-Path $Target "CLAUDE.md"

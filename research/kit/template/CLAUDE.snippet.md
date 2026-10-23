@@ -6,12 +6,14 @@
 | `/research-list-paper <topic>` | Finds the key papers on a topic — foundational and recent, from trusted venues | `.research/lists/` |
 | `/research-summary-paper <paper>` | Analyzes one paper — big picture, claims, evidence, limitations | `.research/papers/` |
 | `/research-download-paper <paper>` | Saves the paper's PDF as `<year>. <title> (<venue>).pdf` — venue PDF first, arXiv as fallback, open copies only | Downloads folder |
+| `/research-figure <description>` | Designs a paper figure that conveys the description — editable PPTX + PDF + PNG preview | `.research/figures/` |
+| `/research-table <data>` | Lays out results as a booktabs table with notes (`*`, `†`) under it — editable PPTX + PDF + PNG preview | `.research/tables/` |
 
-Source and verification rules live in `.claude/skills/research-sources/SKILL.md`. Every command reads it first.
+Source and verification rules live in `.claude/skills/research-sources/SKILL.md`; figure and table rules in `.claude/skills/research-figures/SKILL.md`. Each command reads the ones it needs first.
 
 ### Language
 
-The pipeline's own files (skill, commands) are in English. **Everything produced while using it follows the user's language** — the language of the request: summaries, analyses and reports. Paper titles, venue names, method and dataset names, and author names stay as published.
+The pipeline's own files (skills, commands) are in English. **Everything produced while using it follows the user's language** — the language of the request: summaries, analyses and reports. Paper titles, venue names, method and dataset names, and author names stay as published.
 
 ### Integrity
 

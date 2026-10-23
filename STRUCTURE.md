@@ -13,15 +13,25 @@ These apply to every pipeline in this repository.
 - Identifiers the pipeline depends on stay in English even in the user's output: structural headings, STATUS codes, commit field names, trailers, spec IDs.
 - Each pipeline states this in a `### Language` section of its CLAUDE snippet, so it takes effect in the installed project.
 
+**Cross-platform: every pipeline works on Windows, macOS and Linux.**
+
+- Ship both installers — `install.ps1` (Windows) and `install.sh` (macOS, Linux, Git Bash) — with the same behavior. `.sh` files are LF (enforced by `.gitattributes`).
+- Scripts use only the Python standard library and portable calls: `os.path` / `pathlib` for paths, no hard-coded `/` or `\`, no shell-specific syntax, UTF-8 for every file read and written, and stdout set to UTF-8 (Windows consoles default to another code page).
+- Commands give the interpreter per OS: `python3 …` on macOS / Linux, `python …` on Windows. Allow both in `allowed-tools`.
+- File names a pipeline creates must be valid on all three systems: no `<>:"/\|?*`, no trailing dot or space.
+- User folders are found per OS, not assumed (e.g. Downloads: the Windows registry entry, then XDG, then `~/Downloads`).
+- When a feature needs an outside program (PowerPoint, LibreOffice, Chrome), support what each OS has — e.g. PowerPoint on Windows, LibreOffice on macOS / Linux — and when none is present, still produce the main output and say in one line what is missing.
+- Shell commands a pipeline runs for the user (test commands, build commands) come from the project's own settings, never hard-coded for one OS.
+
 **Token efficiency: mechanical work goes in scripts.**
 
 Anything deterministic a pipeline does on every run — fetching and parsing pages or APIs, git checks, ID and folder bookkeeping, running tests and condensing their output — lives in a script shipped with the kit. Claude calls the script instead of re-deriving the same steps each run.
 
-- One entry script per skill: `skills/<skill>/scripts/<name>tool.py`, with subcommands (`devtool.py preflight`, `researchtool.py meta …`).
+- One entry script per skill: `skills/<skill>/scripts/<name>tool.py`, with subcommands (`devtool.py preflight`, `researchtool.py meta …`). When a pipeline has scripts in more than one skill, name the others after their topic (`research-figures/scripts/figuretool.py`).
 - Python 3 standard library only — nothing to install.
 - Print only what the next step needs, as compact plain text. Bulky data (full text, full logs) goes to a file; print its path and a short outline so Claude reads only the part it needs.
 - Fail loudly: one `ERROR: …` line and a non-zero exit.
-- Commands say how to run it: `python3 <script> …`, or `python <script> …` where `python3` isn't available (Windows).
+- Commands say how to run it: `python3 <script> …` on macOS / Linux, `python <script> …` on Windows (where `python3` is usually a Microsoft Store stub that doesn't run).
 
 **Permissions: pre-approve narrowly.**
 
@@ -95,7 +105,7 @@ Installing must be safe to re-run. Updating uses the same command.
 | Command file | `commands/<command without />.md` | `commands/dev-optimize.md` |
 | Agent | `<name>-<role letter>-<role>` — letters in run order | `dev-a-architect`, `dev-e-optimizer` |
 | Skill | `<name>-<topic>` | `dev-loop` |
-| Script | `skills/<skill>/scripts/<name>tool.py` | `skills/dev-loop/scripts/devtool.py` |
+| Script | `skills/<skill>/scripts/<name>tool.py` (more skills: `<topic>tool.py`) | `skills/dev-loop/scripts/devtool.py` |
 | Project data folder | `.<name>/` | `.dev/` |
 | CLAUDE.md markers | `<!-- <NAME>-PIPELINE:BEGIN -->` … `<!-- <NAME>-PIPELINE:END -->` | `DEV-PIPELINE` |
 | Built files | `<name>-pipeline-kit.zip`, `<name>-pipeline.pdf` | `dev-pipeline-kit.zip` |
@@ -123,4 +133,4 @@ Installing must be safe to re-run. Updating uses the same command.
 | Name | What it does | Commands | Skills | Agents |
 | --- | --- | --- | --- | --- |
 | [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit. Optimization runs as a separate loop | `/dev` `/dev-optimize` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-e-optimizer` |
-| [research](research/docs/design.md) | Finds the key papers on a topic from trusted venues, and analyzes one paper: big picture, claims, evidence, limitations; downloads PDFs | `/research-list-paper` `/research-summary-paper` `/research-download-paper` | `research-sources` | — |
+| [research](research/docs/design.md) | Finds the key papers on a topic from trusted venues, and analyzes one paper: big picture, claims, evidence, limitations; downloads PDFs; makes paper figures and booktabs tables as PPTX + PDF | `/research-list-paper` `/research-summary-paper` `/research-download-paper` `/research-figure` `/research-table` | `research-sources` `research-figures` | — |

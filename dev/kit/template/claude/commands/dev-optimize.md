@@ -8,7 +8,7 @@ Optimization targets: **$ARGUMENTS** (if empty, E processes all of `## Optimizat
 
 ## Preflight
 
-`DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (`python …` if `python3` isn't available), run from the project root.
+`DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run), run from the project root.
 
 1. `DT preflight --no-loop` — **stop on `ERROR`** (not a git repo, or the working tree is not clean). E must roll back on failure, so a clean tree is a precondition.
 2. Confirm the main dev loop is not running. E and the main loop touch the same code, so **never run them at the same time.**

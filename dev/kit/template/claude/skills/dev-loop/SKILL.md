@@ -20,7 +20,7 @@ Three principles explain every other design decision.
 
 ## Script
 
-`scripts/devtool.py` (Python 3, standard library only) does the loop's bookkeeping. Run it from the project root as `python3 .claude/skills/dev-loop/scripts/devtool.py <command>` (`python …` if `python3` isn't available).
+`scripts/devtool.py` (Python 3, standard library only) does the loop's bookkeeping. Run it from the project root as `python3 .claude/skills/dev-loop/scripts/devtool.py <command>` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run).
 
 | Command | Does |
 | --- | --- |

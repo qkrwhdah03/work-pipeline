@@ -71,7 +71,7 @@ There are two levels:
 
 ## Script
 
-`scripts/researchtool.py` (Python 3, standard library only) does the lookups below and prints only what you need. Use it instead of writing requests by hand — run it as `python3 .claude/skills/research-sources/scripts/researchtool.py <command>` (`python …` if `python3` isn't available).
+`scripts/researchtool.py` (Python 3, standard library only) does the lookups below and prints only what you need. Use it instead of writing requests by hand — run it as `python3 .claude/skills/research-sources/scripts/researchtool.py <command>` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run).
 
 | Command | Gives you |
 | --- | --- |
