@@ -12,7 +12,7 @@ The problem both solve is trust. A literature answer is only useful if every pap
 | --- | --- | --- |
 | `/research-list-paper` | a topic or keywords | `.research/lists/<date>-<topic>.md` — the key papers, foundational and recent |
 | `/research-summary-paper` | a title, arXiv ID, DOI or PDF | `.research/papers/<author><year>-<title>.md` — big picture, claims, evidence, limitations |
-| `/research-download-paper` | a title, link, arXiv ID, DOI, or numbers from the last list | `.research/pdfs/<year>. <title> (<venue>).pdf` (or a folder the user names) |
+| `/research-download-paper` | a title, link, arXiv ID, DOI, or numbers from the last list | `.research/pdfs/<year>. <title> (<venue>).pdf` + `.txt` metadata, `index.txt`, `references.bib` (or a folder the user names) |
 | `/research-figure` | a description of what to show | `.research/figures/<date>-<slug>/figure.{json,pptx,pdf,png}` |
 | `/research-table` | data to organize — pasted, a CSV, or numbers from named papers | `.research/tables/<date>-<slug>/table.{json,pptx,pdf,png}` |
 
@@ -46,6 +46,8 @@ Defaults: 10–15 papers, split between foundational work and the last ~2 years.
 ## /research-download-paper
 
 Resolves each paper to its published title, venue and year (same checks as a list entry), then saves the PDF — to `.research/pdfs/` by default, or to the folder the user names in the request (their Downloads folder included) — as `<year>. <title> (<venue>).pdf` — e.g. `2024. SplaTAM - Splat, Track & Map 3D Gaussians for Dense RGB-D SLAM (CVPR).pdf`. The venue's camera-ready PDF comes first, arXiv is the fallback; only open, legitimate copies are used. A paywalled paper with no open copy is reported with its link instead.
+
+Beside each PDF goes a same-named `.txt` so the paper is easy to look up and cite later: authors, venue, a short and a full citation, the links (venue page, DOI, arXiv, verified code and project page, the PDF's source), the BibTeX with where it came from (venue page → Crossref → arXiv) and the abstract. The per-paper files are the record; from them the script regenerates `index.txt` (one line per paper) and `references.bib` (all entries, for LaTeX) in the same folder on every download — one file per paper keeps a PDF and its metadata together when moved or deleted, and the two generated files give the overview without ever drifting from it.
 
 ## /research-figure and /research-table
 

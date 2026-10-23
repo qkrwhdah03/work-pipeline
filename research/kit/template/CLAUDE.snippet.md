@@ -5,7 +5,7 @@
 | --- | --- | --- |
 | `/research-list-paper <topic>` | Finds the key papers on a topic — foundational and recent, from trusted venues | `.research/lists/` |
 | `/research-summary-paper <paper>` | Analyzes one paper — big picture, claims, evidence, limitations | `.research/papers/` |
-| `/research-download-paper <paper>` | Saves the paper's PDF as `<year>. <title> (<venue>).pdf` — venue PDF first, arXiv as fallback, open copies only | `.research/pdfs/` (or a folder you name) |
+| `/research-download-paper <paper>` | Saves the paper's PDF as `<year>. <title> (<venue>).pdf` — venue PDF first, arXiv as fallback, open copies only; a `.txt` beside it holds the citation, links and BibTeX, and `index.txt` / `references.bib` collect them all | `.research/pdfs/` (or a folder you name) |
 | `/research-figure <description>` | Designs a paper figure that conveys the description — editable PPTX + PDF + PNG preview | `.research/figures/` |
 | `/research-table <data>` | Lays out results as a booktabs table with notes (`*`, `†`) under it — editable PPTX + PDF + PNG preview | `.research/tables/` |
 

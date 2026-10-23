@@ -34,7 +34,7 @@ Safe to re-run to update. Saved lists and analyses in `.research/` are never tou
 | --- | --- | --- |
 | `/research-list-paper <topic>` | 10–15 key papers (foundational + recent) in a table: slide-ready citation, paper · code · BibTeX links, and a short summary each | `.research/lists/` |
 | `/research-summary-paper <paper>` | where the paper fits, its claims, the evidence for each, and its limitations | `.research/papers/` |
-| `/research-download-paper <paper>` | the PDF, named `<year>. <title> (<venue>).pdf` | `.research/pdfs/`, or a folder you name (`… to ~/papers`) |
+| `/research-download-paper <paper>` | the PDF, named `<year>. <title> (<venue>).pdf`, a `.txt` beside it (citation, links, BibTeX), and `index.txt` + `references.bib` for the whole folder | `.research/pdfs/`, or a folder you name (`… to ~/papers`) |
 | `/research-figure <description>` | a paper figure: editable PPTX, PDF for LaTeX, PNG preview | `.research/figures/` |
 | `/research-table <data>` | a booktabs results table with notes under it: PPTX, PDF, PNG | `.research/tables/` |
 

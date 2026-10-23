@@ -10,8 +10,11 @@
                                                                 repo exists? README names the paper? page links the repo?
     researchtool.py bibtex  <venue page URL> [DOI] [arXiv id]   first link that shows BibTeX
     researchtool.py download <venue page URL | PDF URL | arXiv id>... --year Y --title T --venue V [--dir DIR | --downloads]
-                                                                save the first open PDF as "Y. T (V).pdf" in .research/pdfs/
+                             [--code URL] [--page URL]          save the first open PDF as "Y. T (V).pdf" in .research/pdfs/
                                                                 (--dir: a folder the user named; --downloads: their Downloads folder)
+                                                                plus "Y. T (V).txt": citation, links, BibTeX + source, abstract;
+                                                                then rebuilds index.txt and references.bib in that folder
+    researchtool.py index [--dir DIR | --downloads]             rebuild index.txt + references.bib from the .txt files
     researchtool.py fulltext <arXiv id> [--out FILE]            arXiv HTML -> plain text file + outline
 
 Output is compact plain text. Errors print one "ERROR: ..." line and exit 1.
@@ -419,19 +422,57 @@ def bibtex_candidates(ref):
         yield "https://arxiv.org/bibtex/" + m.group(1)
 
 
-def cmd_bibtex(a):
-    """Try refs in the given order (venue page, DOI, arXiv id); print the first URL that serves BibTeX."""
+def bibtex_entry(body):
+    """The first BibTeX entry in a .bib file or an HTML page (CVF / PMLR show it in a block), braces balanced."""
+    text = html.unescape(re.sub(r"<br\s*/?>", "\n", body, flags=re.I))
+    m = BIB.search(text)
+    if not m:
+        return None
+    depth, i = 0, m.end() - 1
+    for j in range(i, len(text)):
+        depth += {"{": 1, "}": -1}.get(text[j], 0)
+        if depth == 0:
+            entry = re.sub(r"<[^>]+>", "", text[m.start():j + 1]).strip()
+            if "\n" not in entry:
+                entry = bibtex_unfold(entry)
+            return "\n".join(l.rstrip() for l in entry.splitlines() if l.strip())
+    return None
+
+
+def bibtex_unfold(entry):
+    """One-line BibTeX (Crossref) -> one field per line: break after each top-level comma."""
+    out, depth = [], 0
+    for ch in entry:
+        depth += {"{": 1, "}": -1}.get(ch, 0)
+        out.append(ch)
+        if ch == "," and depth == 1:
+            out.append("\n   ")
+    s = "".join(out)
+    return re.sub(r"\s*\}$", "\n}", s)
+
+
+def find_bibtex(refs):
+    """(url, source kind, entry) for the first ref that serves BibTeX — venue page, DOI, arXiv id, in the order given."""
     tried = []
-    for ref in a.refs:
+    for ref in refs:
         for url in bibtex_candidates(ref):
             status, body = fetch(url, browser=True)
-            if status == 200 and BIB.search(body):
+            entry = bibtex_entry(body) if status == 200 else None
+            if entry:
                 kind = ("venue" if any(s in url for s in ("thecvf", "mlr.press", "neurips.cc"))
                         else "Crossref (DOI)" if "crossref" in url else "arXiv")
-                print("bibtex: %s · source: %s" % (url, kind))
-                return
+                return url, kind, entry, tried
             tried.append("%s (HTTP %s)" % (url, status))
-    die("no BibTeX link verified. Tried: " + ("; ".join(tried) or "nothing usable in the refs given"))
+    return None, None, None, tried
+
+
+def cmd_bibtex(a):
+    """Try refs in the given order (venue page, DOI, arXiv id); print the first URL that serves BibTeX."""
+    url, kind, entry, tried = find_bibtex(a.refs)
+    if not url:
+        die("no BibTeX link verified. Tried: " + ("; ".join(tried) or "nothing usable in the refs given"))
+    print("bibtex: %s · source: %s" % (url, kind))
+    print(entry)
 
 
 def downloads_dir():
@@ -514,6 +555,8 @@ def cmd_download(a):
     path = os.path.join(folder, name)
     if os.path.exists(path):
         print("exists, skipped: " + path)
+        if not os.path.exists(os.path.splitext(path)[0] + ".txt"):
+            write_paper_meta(path, a, None)
         return
     tried = []
     for ref in a.sources:
@@ -523,9 +566,112 @@ def cmd_download(a):
                 with open(path, "wb") as f:
                     f.write(data)
                 print("saved: %s · %.1f MB · from %s" % (path, len(data) / 1e6, url))
+                write_paper_meta(path, a, url)
                 return
             tried.append("%s (%s)" % (url, "not a PDF" if status == 200 else "HTTP %s" % status))
     die("no open PDF found — the paper may be paywalled. Tried: " + ("; ".join(tried) or "no PDF link in the sources given"))
+
+
+def citation_short(authors, venue, year):
+    last = [n.split()[-1] for n in authors if n.split()]
+    who = last[0] if len(last) == 1 else " and ".join(last) if len(last) == 2 else last[0] + " et al." if last else "?"
+    return "%s, %s %s" % (who, venue, year)
+
+
+def write_paper_meta(pdf_path, a, pdf_url):
+    """'<same name>.txt' next to the PDF: citation, links, BibTeX with its source, abstract — for finding it again later.
+    Missing pieces are written as '-' rather than failing the download."""
+    src = [s.strip() for s in a.sources]
+    arx_id = next((ARXIV_ID.search(s).group(1) for s in src
+                   if ARXIV_ID.fullmatch(s) or ("arxiv.org" in s and ARXIV_ID.search(s))), None)
+    doi = next((DOI.search(s).group(1) for s in src
+                if DOI.search(s) and not ARXIV_ID.fullmatch(s) and "10.48550" not in s), None)
+    page = next((s for s in src if s.startswith("http") and not re.search(r"arxiv\.org|doi\.org", s)
+                 and not s.lower().split("?")[0].endswith(".pdf")), None)
+    arx = arxiv_entry(arx_id) if arx_id else arxiv_entry(title=a.title)
+    if arx and norm(arx["title"]) != norm(a.title):
+        arx = None
+    arx_id = arx_id or (arx or {}).get("id")
+    if arx_id:
+        arx_id = re.sub(r"v\d+$", "", arx_id)
+    doi = doi or (arx or {}).get("doi") or None
+    cr = crossref(doi=doi) if doi else None
+    authors = (cr or {}).get("authors") or (arx or {}).get("authors") or []
+    bib_url, bib_kind, bib, _ = find_bibtex([r for r in (page, doi, arx_id) if r])
+
+    links = [("Venue page", page), ("Project page", a.page), ("DOI", doi and "https://doi.org/" + doi),
+             ("arXiv", arx_id and "https://arxiv.org/abs/" + arx_id), ("Code", a.code), ("PDF source", pdf_url)]
+    out = [a.title, ", ".join(authors) or "-", "%s %s" % (a.venue, a.year), "",
+           "== Citation ==",
+           "Short: " + citation_short(authors, a.venue, a.year),
+           "Full:  %s. %s. %s, %s." % (", ".join(authors) or "?", a.title, a.venue, a.year), "",
+           "== Links =="]
+    out += ["%-13s %s" % (k + ":", v) for k, v in links if v]
+    out += ["", "== BibTeX ==", "Source: %s — %s" % (bib_kind, bib_url) if bib else "Source: - (no BibTeX found)", bib or "-"]
+    if arx and arx.get("abstract"):
+        out += ["", "== Abstract (arXiv) ==", arx["abstract"]]
+    out += ["", "Saved: %s · %s" % (time.strftime("%Y-%m-%d"), os.path.basename(pdf_path))]
+    meta_path = os.path.splitext(pdf_path)[0] + ".txt"
+    with open(meta_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(out) + "\n")
+    print("meta: %s · bibtex from %s · %d authors" % (meta_path, bib_kind or "nowhere", len(authors)))
+    rebuild_indexes(os.path.dirname(pdf_path))
+
+
+INDEX, BIBFILE = "index.txt", "references.bib"
+
+
+def read_paper_meta(path):
+    """Parse a '<paper>.txt' written by write_paper_meta."""
+    lines = open(path, encoding="utf-8").read().splitlines()
+    sec, d = None, {"title": lines[0] if lines else "", "links": {}, "bib": []}
+    for l in lines[3:]:
+        m = re.fullmatch(r"== (.+?) ==", l)
+        if m:
+            sec = m.group(1)
+        elif l.startswith("Saved:"):
+            sec = None
+        elif sec == "Citation" and l.startswith("Short:"):
+            d["short"] = l[6:].strip()
+        elif sec == "Links" and ":" in l:
+            k, v = l.split(":", 1)
+            d["links"][k.strip()] = v.strip()
+        elif sec == "BibTeX" and l.strip() not in ("", "-") and not l.startswith("Source:"):
+            d["bib"].append(l)
+    return d
+
+
+def rebuild_indexes(folder):
+    """index.txt (one line per paper) and references.bib (every BibTeX entry), rebuilt from the per-paper .txt files.
+    The .txt files are the record; these two are generated — don't edit them by hand."""
+    papers = []
+    for f in sorted(os.listdir(folder)):
+        if f.endswith(".txt") and f != INDEX:
+            papers.append((f, read_paper_meta(os.path.join(folder, f))))
+    if not papers:
+        return
+    head = "Generated by researchtool.py from the per-paper .txt files — don't edit; re-run `researchtool.py index`."
+    rows = [head, ""]
+    bib = ["% " + head, ""]
+    for f, d in papers:
+        ln = d["links"]
+        link = ln.get("Venue page") or ln.get("DOI") or ln.get("arXiv") or "-"
+        rows.append("%s · %s · %s" % (d.get("short", "?"), d["title"], link))
+        rows.append("    " + os.path.splitext(f)[0] + ".pdf")
+        if d["bib"]:
+            bib += ["% " + os.path.splitext(f)[0]] + d["bib"] + [""]
+    with open(os.path.join(folder, INDEX), "w", encoding="utf-8") as fh:
+        fh.write("\n".join(rows) + "\n")
+    with open(os.path.join(folder, BIBFILE), "w", encoding="utf-8") as fh:
+        fh.write("\n".join(bib).rstrip() + "\n")
+    print("index: %s · %d papers (+ %s)" % (os.path.join(folder, INDEX), len(papers), BIBFILE))
+
+
+def cmd_index(a):
+    folder = downloads_dir() if a.downloads else os.path.expanduser(a.dir) if a.dir else os.path.join(".research", "pdfs")
+    if not os.path.isdir(folder):
+        die("no such folder: " + folder)
+    rebuild_indexes(os.path.abspath(folder))
 
 
 def cmd_fulltext(a):
@@ -570,10 +716,14 @@ def main():
     s = sub.add_parser("download"); s.add_argument("sources", nargs="+", help="venue page URL, PDF URL, or arXiv id — best first")
     s.add_argument("--year", required=True); s.add_argument("--title", required=True); s.add_argument("--venue", required=True)
     g = s.add_mutually_exclusive_group(); g.add_argument("--dir"); g.add_argument("--downloads", action="store_true")
+    s.add_argument("--code", help="verified official code repo, for the .txt"); s.add_argument("--page", help="verified project page, for the .txt")
+    s = sub.add_parser("index")
+    g = s.add_mutually_exclusive_group(); g.add_argument("--dir"); g.add_argument("--downloads", action="store_true")
     s = sub.add_parser("fulltext"); s.add_argument("ref"); s.add_argument("--out")
     a = ap.parse_args()
     {"search": cmd_search, "meta": cmd_meta, "cites": cmd_cites, "page": cmd_page, "venue-url": cmd_venue_url,
-     "github": cmd_github, "bibtex": cmd_bibtex, "download": cmd_download, "fulltext": cmd_fulltext}[a.cmd](a)
+     "github": cmd_github, "bibtex": cmd_bibtex, "download": cmd_download, "index": cmd_index,
+     "fulltext": cmd_fulltext}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -82,9 +82,10 @@ There are two levels:
 | `page <url> [--grep REGEX] [--links REGEX]` | fetches as a browser (gets past CVF's block): page title, CVF paper title, GitHub links on the page, matching lines / links |
 | `venue-url "<title>" <CVPR2024 \| ICCV2023 \| WACV2024>` | the paper's CVF Open Access page, found from the conference listing — CVF URLs can't be guessed reliably |
 | `github <owner/repo> --paper "<title>" --paper <arXiv id> [--page <project page>]` | repo exists, owner, stars, whether the README names the paper, and whether the project page links the repo |
-| `bibtex <venue page URL> [DOI] [arXiv id]` | the first link that shows the BibTeX: venue page (CVF, PMLR, NeurIPS `.bib`) → Crossref by DOI → arXiv |
+| `bibtex <venue page URL> [DOI] [arXiv id]` | the first link that shows the BibTeX: venue page (CVF, PMLR, NeurIPS `.bib`) → Crossref by DOI → arXiv — and the entry itself |
 | `fulltext <arXiv id> [--out FILE]` | arXiv HTML → text file (equations kept) + outline with line numbers and table / figure captions |
-| `download <venue page \| PDF URL \| DOI \| arXiv id>... --year Y --title T --venue V [--dir DIR \| --downloads]` | saves the first open PDF among the sources as `Y. T (V).pdf` in `.research/pdfs/` (or `--dir`, a folder the user named; `--downloads`, their Downloads folder); checks it is a real PDF; skips existing files |
+| `download <venue page \| PDF URL \| DOI \| arXiv id>... --year Y --title T --venue V [--dir DIR \| --downloads]` | saves the first open PDF among the sources as `Y. T (V).pdf` in `.research/pdfs/` (or `--dir`, a folder the user named; `--downloads`, their Downloads folder); checks it is a real PDF; skips existing files. Writes `Y. T (V).txt` beside it (citation, links, BibTeX + source, abstract; `--code` / `--page` add verified links) and rebuilds `index.txt` + `references.bib` in that folder |
+| `index [--dir DIR \| --downloads]` | rebuilds `index.txt` and `references.bib` from the per-paper `.txt` files (after deleting papers) |
 
 It exits with one `ERROR: …` line when a lookup fails; then fall back to the services below or WebSearch / WebFetch.
 
