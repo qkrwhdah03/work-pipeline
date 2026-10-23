@@ -52,29 +52,76 @@ def hexcolor(c, default="000000"):
 
 RUN = re.compile(r"(\{size:[0-9.]+\|.+?\}|\*\*.+?\*\*|__.+?__|\^\{.+?\}|_\{.+?\}|\*[^*\s][^*]*?\*)")
 
+# Arial / Helvetica advance widths (1/1000 em) for ASCII 32..126 — Liberation Sans shares them.
+ARIAL = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278,
+         556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556,
+         1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778,
+         667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556,
+         333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556,
+         556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584]
 
-def runs_xml(text, size, color, bold=False, italic=False, font=None):
-    """Inline markup: **bold**, __underline__, *italic*, ^{superscript}, _{subscript}, {size:11|bigger}."""
+
+def char_em(ch):
+    o = ord(ch)
+    if 32 <= o <= 126:
+        return ARIAL[o - 32] / 1000
+    if o >= 0x1100 and (o <= 0x11FF or 0x2E80 <= o <= 0xD7AF or 0xF900 <= o <= 0xFFDC):
+        return 1.0  # CJK / Hangul
+    return 0.6
+
+
+def text_width(line, size, bold=False):
+    """Width in inches of one line of marked-up text in Arial (close for other sans fonts)."""
+    w = 0.0
+    for part in RUN.split(line):
+        if not part:
+            continue
+        b, k, sz = bold, 1.0, size
+        ms = re.fullmatch(r"\{size:([0-9.]+)\|(.+)\}", part)
+        if ms:
+            w += text_width(ms.group(2), float(ms.group(1)), bold)
+            continue
+        if part.startswith("**") and part.endswith("**") and len(part) > 4:
+            w += text_width(part[2:-2], size, True)
+            continue
+        elif part.startswith("__") and part.endswith("__") and len(part) > 4:
+            w += text_width(part[2:-2], size, bold)
+            continue
+        elif part[:2] in ("^{", "_{") and part.endswith("}"):
+            part, k = part[2:-1], 0.67  # super/subscripts are drawn at about 2/3 size
+        elif part.startswith("*") and part.endswith("*") and len(part) > 2:
+            w += text_width(part[1:-1], size, bold)
+            continue
+        w += sum(char_em(c) for c in part) * (1.07 if b else 1.0) * k * sz / 72
+    return w
+
+
+def runs_xml(text, size, color, bold=False, italic=False, font=None, underline=False):
+    """Inline markup: **bold**, __underline__, *italic*, ^{superscript}, _{subscript}, {size:11|bigger}.
+    Bold / underline / italic may contain other markup (*x_{i}*)."""
     out = []
     for part in RUN.split(text):
         if not part:
             continue
-        b, i, u, base, sz = bold, italic, False, 0, size
+        b, i, u, base, sz = bold, italic, underline, 0, size
         ms = re.fullmatch(r"\{size:([0-9.]+)\|(.+)\}", part)
         if ms:
             sz, part = float(ms.group(1)), ms.group(2)
-            out.append(runs_xml(part, sz, color, bold, italic, font))
+            out.append(runs_xml(part, sz, color, bold, italic, font, underline))
             continue
         if part.startswith("**") and part.endswith("**") and len(part) > 4:
-            part, b = part[2:-2], True
+            out.append(runs_xml(part[2:-2], size, color, True, italic, font, underline))
+            continue
         elif part.startswith("__") and part.endswith("__") and len(part) > 4:
-            part, u = part[2:-2], True
+            out.append(runs_xml(part[2:-2], size, color, bold, italic, font, True))
+            continue
         elif part.startswith("^{") and part.endswith("}"):
             part, base = part[2:-1], 30000
         elif part.startswith("_{") and part.endswith("}"):
             part, base = part[2:-1], -25000
         elif part.startswith("*") and part.endswith("*") and len(part) > 2:
-            part, i = part[1:-1], True
+            out.append(runs_xml(part[1:-1], size, color, bold, True, font, underline))
+            continue
         attrs = 'lang="en-US" sz="%d" b="%d" i="%d"' % (int(size * 100 * SCALE), b, i)
         if u:
             attrs += ' u="sng"'
@@ -91,7 +138,8 @@ def paragraphs_xml(text, size, color, align="ctr", bold=False, italic=False, fon
     sp = '<a:lnSpc><a:spcPct val="%d"/></a:lnSpc>' % int(spacing * 100000) if spacing else ""
     paras = []
     for line in str(text).split("\n"):
-        paras.append('<a:p><a:pPr algn="%s">%s</a:pPr>%s<a:endParaRPr lang="en-US" sz="%d"/></a:p>'
+        # latinLnBrk="0": never break an English word in half (Korean / Japanese / Chinese Office does by default)
+        paras.append('<a:p><a:pPr algn="%s" latinLnBrk="0">%s</a:pPr>%s<a:endParaRPr lang="en-US" sz="%d"/></a:p>'
                      % (algn, sp, runs_xml(line, size, color, bold, italic, font), int(size * 100 * SCALE)))
     return "".join(paras)
 
@@ -107,20 +155,26 @@ class Slide:
         self.bounds = None  # ink bounds [x1, y1, x2, y2] — for cropping the canvas
         self.warnings = []
         self.shapes, self.texts, self.segments = [], [], []  # for the overlap check
+        self.panels = []  # groups with a sub-figure "label", placed after everything is drawn
 
     def grow(self, x1, y1, x2, y2):
         b = self.bounds
         self.bounds = [x1, y1, x2, y2] if b is None else [min(b[0], x1), min(b[1], y1), max(b[2], x2), max(b[3], y2)]
 
-    def text_ink(self, e, text, x, y, w, h, em):
-        """Estimated rectangle the text itself covers inside its box (em = average glyph width in em)."""
+    def text_ink(self, e, text, x, y, w, h, text_only):
+        """Estimated rectangle the text itself covers inside its box. Text-only elements never wrap
+        (lines break only at \\n), so their ink may stick out of the box; box text wraps inside it."""
         size = float(e.get("size", self.size))
         pad = float(e.get("pad", 0.04))
-        lines = [MARKUP_ALL.sub(lambda m: next((g for g in m.groups() if g), ""), l) for l in str(text).split("\n")]
+        lines = str(text).split("\n")
         inner = max(w - 2 * pad, 0.01)
-        widths = [len(l) * size * em / 72 for l in lines]
-        n = sum(int(-(-wl // inner)) if wl > inner else 1 for wl in widths)  # wrapped line count
-        tw, th = min(max(widths), inner), n * size * 1.22 / 72
+        widths = [text_width(l, size, e.get("bold", False)) for l in lines]
+        if text_only:
+            n, tw = len(lines), max(widths)
+        else:
+            n = sum(int(-(-wl // inner)) if wl > inner else 1 for wl in widths)  # wrapped line count
+            tw = min(max(widths), inner)
+        th = n * size * 1.22 / 72
         al = e.get("align", "center")
         tx = x + pad if al in ("left", "l") else x + w - pad - tw if al in ("right", "r") else x + (w - tw) / 2
         va = e.get("valign", "middle")
@@ -160,9 +214,10 @@ class Slide:
         name = e.get("id") or str(text).split("\n")[0][:28] or "%s at (%.2f, %.2f)" % (e.get("shape", "rect"), x, y)
         if text_only:
             if text:
-                self.grow(*self.text_ink(e, text, x, y, w, h, 0.6))
+                ink = self.text_ink(e, text, x, y, w, h, True)
+                self.grow(*ink)
                 if not e.get("_internal"):
-                    self.texts.append({"name": name, "ink": self.text_ink(e, text, x, y, w, h, 0.48),
+                    self.texts.append({"name": name, "ink": ink,
                                        "ok": e.get("overlap", False), "owner": e.get("_owner")})
         else:
             r = rotated_bbox(x, y, w, h, float(e.get("rotate", 0) or 0))
@@ -196,25 +251,25 @@ class Slide:
             '<p:sp><p:nvSpPr><p:cNvPr id="%d" name="%s"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
             '<p:spPr><a:xfrm%s><a:off x="%d" y="%d"/><a:ext cx="%d" cy="%d"/></a:xfrm>'
             '<a:prstGeom prst="%s">%s</a:prstGeom>%s%s</p:spPr>'
-            '<p:txBody><a:bodyPr wrap="square" lIns="%d" tIns="%d" rIns="%d" bIns="%d" anchor="%s" rtlCol="0">'
+            '<p:txBody><a:bodyPr wrap="%s" lIns="%d" tIns="%d" rIns="%d" bIns="%d" anchor="%s" rtlCol="0">'
             '<a:noAutofit/></a:bodyPr><a:lstStyle/>%s</p:txBody></p:sp>' % (
                 sid, escape(e.get("id", "Shape %d" % sid)), rot, emu(x), emu(y), emu(w), emu(h), geom, adj,
-                fill_xml, ln, inset, inset, inset, inset, va, body))
+                fill_xml, ln, "none" if text_only else "square", inset, inset, inset, inset, va, body))
 
     def check_fit(self, e, text, w, h, text_only):
-        """Rough text-fit estimate — warns before the preview has to show it. Errs on the quiet side:
-        average glyph ~0.48 em; flags only clear overruns."""
+        """Text-fit check from Arial glyph widths — warns before the preview has to show it."""
         if not text or e.get("_internal"):
             return
         size = float(e.get("size", self.size))
         pad = float(e.get("pad", 0.04))
-        lines = [MARKUP_ALL.sub(lambda m: next((g for g in m.groups() if g), ""), l)
-                 for l in str(text).split("\n")]
-        widest = max(len(l) for l in lines) * size * 0.48 / 72
+        lines = str(text).split("\n")
+        widest = max(text_width(l, size, e.get("bold", False)) for l in lines)
         tall = len(lines) * size * 1.2 / 72
-        name = e.get("id") or (lines[0][:24] + "…")
-        if widest > (w - 2 * pad) * 1.1:
-            self.warnings.append("%s: text ~%.2f in wide in a %.2f in box — likely wraps (widen, shrink size, or reduce pad)" % (name, widest, w - 2 * pad))
+        name = e.get("id") or (MARKUP_ALL.sub(lambda m: next((g for g in m.groups() if g), ""), lines[0])[:24] + "…")
+        if widest * 1.03 > w - 2 * pad:  # ~3% headroom: renderers differ a little in kerning
+            what = "sticks out of its box (text elements never wrap; break lines with \\n or widen it)" if text_only \
+                else "wraps inside the box (widen it, shrink size, reduce pad, or break lines yourself with \\n)"
+            self.warnings.append("%s: text ~%.2f in wide, box has %.2f in — %s" % (name, widest, w - 2 * pad, what))
         if not text_only and len(lines) > 1 and tall > (h - 2 * pad) * 1.1:
             self.warnings.append("%s: %d lines need ~%.2f in, box is %.2f in tall — likely overflows" % (name, len(lines), tall, h - 2 * pad))
 
@@ -233,17 +288,54 @@ class Slide:
                 sid, sid, flip, emu(min(x1, x2)), emu(min(y1, y2)), emu(abs(x2 - x1)), emu(abs(y2 - y1)),
                 self.line_xml(e.get("color", "#333333"), e.get("lw", 1), e.get("dash", "solid"), head_start, head_end)))
 
+    def polyline(self, pts, e, head_start=None, head_end=None, ends=(), owner=None):
+        """Elbow arrow / bent line as ONE freeform path, so corners join cleanly and the head sits on the path end."""
+        hs = float(e.get("lw", 1)) / 72 * 3.5
+        for i, (p1, p2) in enumerate(zip(pts, pts[1:])):
+            g = hs if (i == 0 and head_start) or (i == len(pts) - 2 and head_end) else float(e.get("lw", 1)) / 72 * 0.5
+            self.grow(min(p1[0], p2[0]) - g, min(p1[1], p2[1]) - g, max(p1[0], p2[0]) + g, max(p1[1], p2[1]) + g)
+            if not e.get("_internal"):
+                self.segments.append({"p1": p1, "p2": p2, "ends": set(ends), "ok": e.get("overlap", False), "owner": owner})
+        x0, y0 = min(p[0] for p in pts), min(p[1] for p in pts)
+        pw, ph = max(emu(max(p[0] for p in pts) - x0), 1), max(emu(max(p[1] for p in pts) - y0), 1)
+        path = "".join('<a:%s><a:pt x="%d" y="%d"/></a:%s>' % (t, emu(p[0] - x0), emu(p[1] - y0), t)
+                       for t, p in zip(["moveTo"] + ["lnTo"] * (len(pts) - 1), pts))
+        ln = self.line_xml(e.get("color", "#333333"), e.get("lw", 1), e.get("dash", "solid"), head_start, head_end)
+        ln = ln.replace("<a:round/>", '<a:miter lim="800000"/>')  # crisp right-angle corners
+        sid = self.next_id()
+        self.items.append(
+            '<p:sp><p:nvSpPr><p:cNvPr id="%d" name="Connector %d"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+            '<p:spPr><a:xfrm><a:off x="%d" y="%d"/><a:ext cx="%d" cy="%d"/></a:xfrm>'
+            '<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/>'
+            '<a:pathLst><a:path w="%d" h="%d" fill="none">%s</a:path></a:pathLst></a:custGeom>'
+            '<a:noFill/>%s</p:spPr></p:sp>' % (sid, sid, emu(x0), emu(y0), pw, ph, pw, ph, path, ln))
+
     def arrow(self, e):
         pts = [self.anchor(e["from"])] + [self.anchor(p) for p in e.get("via", [])] + [self.anchor(e["to"])]
         head = e.get("head", "end")
         kind = "triangle"
         ends = [str(r).split(".")[0] for r in (e["from"], e["to"]) if isinstance(r, str)]
         owner = id(e)
-        for i in range(len(pts) - 1):
-            first, last = i == 0, i == len(pts) - 2
-            self.segment(pts[i], pts[i + 1], e,
-                         kind if first and head in ("start", "both") else None,
-                         kind if last and head in ("end", "both") else None, ends, owner)
+        hs = kind if head in ("start", "both") else None
+        he = kind if head in ("end", "both") else None
+        if not e.get("_internal"):
+            # An arrowhead needs room: on a final segment shorter than ~0.12 in the bend vanishes and
+            # only a floating triangle is left.
+            name = "arrow %s → %s" % tuple(r if isinstance(r, str) else "[%.2f, %.2f]" % tuple(map(float, r))
+                                            for r in (e["from"], e["to"]))
+            for seg, on in (((pts[-2], pts[-1]), he), ((pts[0], pts[1]), hs)):
+                L = math.hypot(seg[1][0] - seg[0][0], seg[1][1] - seg[0][1])
+                if on and len(pts) > 2 and L < 0.12:
+                    self.warnings.append("%s: the segment with the arrowhead is only %.2f in — move the bend so it is at least 0.12 in, "
+                                         "or the turn won't show" % (name, L))
+            if any(math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-3 for a, b in zip(pts, pts[1:])):
+                self.warnings.append("%s: two consecutive points are the same — drop the duplicate via point" % name)
+            if any(abs(a[0] - b[0]) > 0.005 and abs(a[1] - b[1]) > 0.005 for a, b in zip(pts, pts[1:])) and len(pts) > 2:
+                self.warnings.append("%s: an elbow segment is diagonal — via points should share x or y with their neighbours" % name)
+        if len(pts) > 2:
+            self.polyline(pts, e, hs, he, ends, owner)
+        else:
+            self.segment(pts[0], pts[1], e, hs, he, ends, owner)
         if e.get("label"):
             (x1, y1), (x2, y2) = pts[len(pts) // 2 - 1 if len(pts) > 2 else 0], pts[len(pts) // 2 if len(pts) > 2 else 1]
             mx, my = (x1 + x2) / 2, (y1 + y2) / 2
@@ -726,7 +818,14 @@ def draw(s, elements, base_dir, dx, dy, overlap=False):
         ov = overlap or e.get("overlap", False)  # set on a group / repeat, it covers everything inside
         if t == "group":
             # local coordinates: children are placed relative to the group's x, y
+            outer, s.bounds = s.bounds, None
             draw(s, e.get("elements", []), base_dir, dx + float(e.get("x", 0)), dy + float(e.get("y", 0)), ov)
+            inner = s.bounds
+            s.bounds = outer
+            if inner:
+                s.grow(*inner)
+                if e.get("label"):
+                    s.panels.append({"e": e, "ink": inner, "ok": ov})
             continue
         if t == "repeat":
             # copies of "element" (or "elements"), the k-th moved by k*(dx, dy); "{i}" (0-based) and "{n}" (1-based) are filled in
@@ -754,6 +853,33 @@ def draw(s, elements, base_dir, dx, dy, overlap=False):
             die("unknown element type %r (box, text, arrow, line, image, table, group, repeat)" % t)
 
 
+def place_panel_labels(s):
+    """Sub-figure labels ("(a) ...") from a group's "label": centered under the panel's ink, and on one
+    shared baseline for panels in the same row. "label_pos": "above" puts them over the panel instead."""
+    rows = []
+    for p in sorted(s.panels, key=lambda p: p["ink"][1]):
+        for r in rows:  # same row = vertical extents overlap
+            if min(p["ink"][3], max(q["ink"][3] for q in r)) > max(p["ink"][1], min(q["ink"][1] for q in r)):
+                r.append(p)
+                break
+        else:
+            rows.append([p])
+    for r in rows:
+        bottom, top = max(q["ink"][3] for q in r), min(q["ink"][1] for q in r)
+        for p in r:
+            e, (x1, _, x2, _) = p["e"], p["ink"]
+            size = float(e.get("label_size", s.size))
+            gap = float(e.get("label_gap", 0.06))
+            tw = text_width(e["label"], size, e.get("label_bold", False))
+            w, h = tw * 1.06 + 0.04, size * 1.22 / 72 + 0.04
+            y = top - gap - h if e.get("label_pos") == "above" else bottom + gap
+            if tw > x2 - x1 + 0.01:
+                s.warnings.append("panel label %r (%.2f in) is wider than its panel (%.2f in) — shorten it"
+                                  % (e["label"], tw, x2 - x1))
+            s.box({"x": (x1 + x2) / 2 - w / 2, "y": y, "w": w, "h": h, "text": e["label"], "size": size,
+                   "bold": e.get("label_bold", False), "pad": 0.02, "overlap": p["ok"]}, text_only=True)
+
+
 def cmd_build(a):
     try:
         with open(a.spec, encoding="utf-8") as f:
@@ -765,6 +891,7 @@ def cmd_build(a):
     m = float(spec.get("margin", 0.03))
     probe = Slide(spec)  # first pass: measure the ink bounds
     draw(probe, spec.get("elements", []), base_dir, 0.0, 0.0)
+    place_panel_labels(probe)
     if probe.bounds is None:
         die("the spec has no elements")
     bx1, by1, bx2, by2 = probe.bounds
@@ -797,6 +924,7 @@ def cmd_build(a):
     SCALE = max(1.0, 1.0 / min(w, h))
     s = Slide(spec)  # second pass: draw with the content moved to the margins
     draw(s, spec.get("elements", []), base_dir, dx, dy)
+    place_panel_labels(s)
     s.warnings += notes + check_overlaps(s)
     out = os.path.abspath(a.out or os.path.splitext(a.spec)[0])
     pptx, pdf, png = out + ".pptx", out + ".pdf", out + ".png"

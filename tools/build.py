@@ -106,7 +106,7 @@ def build_zip(name, base, dist):
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(os.path.join(base, "docs", "install.md"), top + "/README.md")
         for d, dirs, files in os.walk(kit):
-            dirs.sort()
+            dirs[:] = sorted(x for x in dirs if x != "__pycache__")  # left behind by running the kit scripts
             rel = os.path.relpath(d, kit).replace(os.sep, "/")
             prefix = top if rel == "." else top + "/" + rel
             for f in sorted(files):
