@@ -9,8 +9,9 @@
     researchtool.py github  <owner/repo> [--paper "<title>"] [--paper <arXiv id>] [--page <project page>]
                                                                 repo exists? README names the paper? page links the repo?
     researchtool.py bibtex  <venue page URL> [DOI] [arXiv id]   first link that shows BibTeX
-    researchtool.py download <venue page URL | PDF URL | arXiv id>... --year Y --title T --venue V [--dir DIR]
-                                                                save the first open PDF to Downloads as "Y. T (V).pdf"
+    researchtool.py download <venue page URL | PDF URL | arXiv id>... --year Y --title T --venue V [--dir DIR | --downloads]
+                                                                save the first open PDF as "Y. T (V).pdf" in .research/pdfs/
+                                                                (--dir: a folder the user named; --downloads: their Downloads folder)
     researchtool.py fulltext <arXiv id> [--out FILE]            arXiv HTML -> plain text file + outline
 
 Output is compact plain text. Errors print one "ERROR: ..." line and exit 1.
@@ -505,7 +506,9 @@ def pdf_candidates(ref):
 
 def cmd_download(a):
     """Save the first open PDF among the sources as '<year>. <title> (<venue>).pdf'."""
-    folder = os.path.normpath(a.dir or downloads_dir())
+    # Default: .research/pdfs/ in the project (the current directory). --dir / --downloads only when the user names a place.
+    folder = downloads_dir() if a.downloads else os.path.expanduser(a.dir) if a.dir else os.path.join(".research", "pdfs")
+    folder = os.path.abspath(os.path.normpath(folder))
     os.makedirs(folder, exist_ok=True)
     name = safe_filename("%s. %s (%s)" % (a.year, a.title, a.venue)) + ".pdf"
     path = os.path.join(folder, name)
@@ -565,7 +568,8 @@ def main():
     s = sub.add_parser("github"); s.add_argument("repo"); s.add_argument("--paper", action="append", default=[], help="title or arXiv id; repeatable"); s.add_argument("--page", help="project / venue page that should link the repo")
     s = sub.add_parser("bibtex"); s.add_argument("refs", nargs="+")
     s = sub.add_parser("download"); s.add_argument("sources", nargs="+", help="venue page URL, PDF URL, or arXiv id — best first")
-    s.add_argument("--year", required=True); s.add_argument("--title", required=True); s.add_argument("--venue", required=True); s.add_argument("--dir")
+    s.add_argument("--year", required=True); s.add_argument("--title", required=True); s.add_argument("--venue", required=True)
+    g = s.add_mutually_exclusive_group(); g.add_argument("--dir"); g.add_argument("--downloads", action="store_true")
     s = sub.add_parser("fulltext"); s.add_argument("ref"); s.add_argument("--out")
     a = ap.parse_args()
     {"search": cmd_search, "meta": cmd_meta, "cites": cmd_cites, "page": cmd_page, "venue-url": cmd_venue_url,

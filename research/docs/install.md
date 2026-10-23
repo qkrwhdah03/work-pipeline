@@ -34,7 +34,7 @@ Safe to re-run to update. Saved lists and analyses in `.research/` are never tou
 | --- | --- | --- |
 | `/research-list-paper <topic>` | 10–15 key papers (foundational + recent) in a table: slide-ready citation, paper · code · BibTeX links, and a short summary each | `.research/lists/` |
 | `/research-summary-paper <paper>` | where the paper fits, its claims, the evidence for each, and its limitations | `.research/papers/` |
-| `/research-download-paper <paper>` | the PDF, named `<year>. <title> (<venue>).pdf` | your Downloads folder |
+| `/research-download-paper <paper>` | the PDF, named `<year>. <title> (<venue>).pdf` | `.research/pdfs/`, or a folder you name (`… to ~/papers`) |
 | `/research-figure <description>` | a paper figure: editable PPTX, PDF for LaTeX, PNG preview | `.research/figures/` |
 | `/research-table <data>` | a booktabs results table with notes under it: PPTX, PDF, PNG | `.research/tables/` |
 
@@ -59,5 +59,5 @@ Everything works without keys. Semantic Scholar is often rate-limited without on
 ├── .claude/commands/             research-list-paper.md, research-summary-paper.md, research-download-paper.md, research-figure.md, research-table.md
 ├── .claude/skills/research-sources/   (+ scripts/researchtool.py)
 ├── .claude/skills/research-figures/   (+ scripts/figuretool.py)
-└── .research/lists/, papers/, figures/, tables/
+└── .research/lists/, papers/, pdfs/, figures/, tables/   (pdfs/ is added to .gitignore)
 ```

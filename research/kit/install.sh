@@ -22,8 +22,16 @@ echo "  [v] .claude/commands  (/research-list-paper, /research-summary-paper, /r
 echo "  [v] .claude/skills/research-sources, research-figures"
 
 # --- .research/ : outputs, never touched if present ---
-mkdir -p "$TARGET/.research/lists" "$TARGET/.research/papers" "$TARGET/.research/figures" "$TARGET/.research/tables"
-echo "  [v] .research/  (lists/, papers/, figures/, tables/)"
+mkdir -p "$TARGET/.research/lists" "$TARGET/.research/papers" "$TARGET/.research/pdfs" "$TARGET/.research/figures" "$TARGET/.research/tables"
+echo "  [v] .research/  (lists/, papers/, pdfs/, figures/, tables/)"
+
+# --- .gitignore : downloaded PDFs never go into the repository (copyright, size) ---
+GI="$TARGET/.gitignore"
+if [ -f "$GI" ] && grep -qE "^/?\.research(/pdfs)?/?(\*)?[[:space:]]*$" "$GI"; then :
+else
+  printf '\n# Downloaded paper PDFs (copyrighted, large)\n.research/pdfs/\n' >> "$GI"
+  echo "  [v] .gitignore  added .research/pdfs"
+fi
 
 # --- CLAUDE.md : replace only the marker block ---
 CM="$TARGET/CLAUDE.md"

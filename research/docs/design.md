@@ -12,7 +12,7 @@ The problem both solve is trust. A literature answer is only useful if every pap
 | --- | --- | --- |
 | `/research-list-paper` | a topic or keywords | `.research/lists/<date>-<topic>.md` — the key papers, foundational and recent |
 | `/research-summary-paper` | a title, arXiv ID, DOI or PDF | `.research/papers/<author><year>-<title>.md` — big picture, claims, evidence, limitations |
-| `/research-download-paper` | a title, link, arXiv ID, DOI, or numbers from the last list | `<Downloads>/<year>. <title> (<venue>).pdf` |
+| `/research-download-paper` | a title, link, arXiv ID, DOI, or numbers from the last list | `.research/pdfs/<year>. <title> (<venue>).pdf` (or a folder the user names) |
 | `/research-figure` | a description of what to show | `.research/figures/<date>-<slug>/figure.{json,pptx,pdf,png}` |
 | `/research-table` | data to organize — pasted, a CSV, or numbers from named papers | `.research/tables/<date>-<slug>/table.{json,pptx,pdf,png}` |
 
@@ -45,7 +45,7 @@ Defaults: 10–15 papers, split between foundational work and the last ~2 years.
 
 ## /research-download-paper
 
-Resolves each paper to its published title, venue and year (same checks as a list entry), then saves the PDF to the user's Downloads folder as `<year>. <title> (<venue>).pdf` — e.g. `2024. SplaTAM - Splat, Track & Map 3D Gaussians for Dense RGB-D SLAM (CVPR).pdf`. The venue's camera-ready PDF comes first, arXiv is the fallback; only open, legitimate copies are used. A paywalled paper with no open copy is reported with its link instead.
+Resolves each paper to its published title, venue and year (same checks as a list entry), then saves the PDF — to `.research/pdfs/` by default, or to the folder the user names in the request (their Downloads folder included) — as `<year>. <title> (<venue>).pdf` — e.g. `2024. SplaTAM - Splat, Track & Map 3D Gaussians for Dense RGB-D SLAM (CVPR).pdf`. The venue's camera-ready PDF comes first, arXiv is the fallback; only open, legitimate copies are used. A paywalled paper with no open copy is reported with its link instead.
 
 ## /research-figure and /research-table
 
@@ -116,6 +116,7 @@ Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Seman
 └── .research/
     ├── lists/                         /research-list-paper output
     ├── papers/                        /research-summary-paper output
+    ├── pdfs/                          /research-download-paper output (gitignored)
     ├── figures/                       /research-figure output
     └── tables/                        /research-table output
 ```

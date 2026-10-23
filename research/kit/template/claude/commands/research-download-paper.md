@@ -1,12 +1,12 @@
 ---
-description: Download a paper's PDF to the Downloads folder as "<year>. <title> (<venue>).pdf"
-argument-hint: <paper title, link, arXiv ID, DOI — or numbers from the last /research-list-paper list>
+description: Download a paper's PDF as "<year>. <title> (<venue>).pdf" into .research/pdfs/ (or a folder you name)
+argument-hint: <paper title, link, arXiv ID, DOI — or numbers from the last /research-list-paper list> [to <folder>]
 allowed-tools: WebSearch, Read, Glob, Bash(python3 .claude/skills/research-sources/scripts/researchtool.py:*), Bash(python .claude/skills/research-sources/scripts/researchtool.py:*)
 ---
 
 Paper(s): **$ARGUMENTS**
 
-Save each paper's PDF to the user's Downloads folder, named `<Year>. <Title> (<Venue>).pdf`.
+Save each paper's PDF named `<Year>. <Title> (<Venue>).pdf` — by default in the project's `.research/pdfs/`, or wherever the user says.
 
 ## 0. Rules
 
@@ -16,7 +16,12 @@ Reply in the user's language.
 
 **Only open, legitimate copies:** the venue's own PDF, arXiv, or an open-access link from the publisher or OpenAlex. Never use shadow libraries or anything that gets around a paywall. If no open PDF exists, say so and give the paper's link instead.
 
-## 1. Resolve each paper
+## 1. Where to save
+
+- **Default: `.research/pdfs/`** in the project — pass nothing.
+- **The user named a place** in the request ("to ~/papers", "in docs/refs", "다운로드 폴더에"): a folder → `--dir <folder>` (relative paths are from the project root; `~` works); their Downloads folder → `--downloads`. Use exactly what they named; don't move it elsewhere.
+
+## 2. Resolve each paper
 
 The input can be anything: a title, a link (venue page, arXiv, DOI, project page), an arXiv ID, a DOI — or several separated by `;` or new lines. If it is only numbers (e.g. `2, 5`) and `.research/lists/` has lists, take those entries from the most recent list.
 
@@ -28,15 +33,15 @@ For each paper, confirm from fetched sources (the skill's full check, minus code
 
 If the input matches several papers, list them and ask which one. Don't guess.
 
-## 2. Download
+## 3. Download
 
 ```
-RT download <venue page URL> <DOI> <arXiv id> --year <Year> --title "<Title>" --venue "<Venue>"
+RT download <venue page URL> <DOI> <arXiv id> --year <Year> --title "<Title>" --venue "<Venue>" [--dir <folder> | --downloads]
 ```
 
-Pass the sources best first — the venue page gives the final camera-ready PDF; arXiv is the fallback. The script finds the PDF link on each page, checks the file really is a PDF, saves it to the Downloads folder, and skips files that already exist.
+Pass the sources best first — the venue page gives the final camera-ready PDF; arXiv is the fallback. The script finds the PDF link on each page, checks the file really is a PDF, saves it to the folder from step 1, and skips files that already exist.
 
-## 3. Report
+## 4. Report
 
 One line per paper:
 
@@ -45,4 +50,4 @@ One line per paper:
 ✗ <Title> — no open PDF; paper: <link>
 ```
 
-Say where the PDF came from (venue or arXiv), and end with the Downloads folder path.
+Say where the PDF came from (venue or arXiv), and end with the folder the PDFs were saved in.

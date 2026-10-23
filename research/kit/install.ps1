@@ -35,10 +35,18 @@ Write-Host "  [v] .claude/commands  (/research-list-paper, /research-summary-pap
 Write-Host "  [v] .claude/skills/research-sources, research-figures"
 
 # --- .research/ : outputs, never touched if present ---
-foreach ($D in "lists", "papers", "figures", "tables") {
+foreach ($D in "lists", "papers", "pdfs", "figures", "tables") {
   New-Item -ItemType Directory -Force -Path (Join-Path $Target ".research\$D") | Out-Null
 }
-Write-Host "  [v] .research/  (lists/, papers/, figures/, tables/)"
+Write-Host "  [v] .research/  (lists/, papers/, pdfs/, figures/, tables/)"
+
+# --- .gitignore : downloaded PDFs never go into the repository (copyright, size) ---
+$Gi = Join-Path $Target ".gitignore"
+$giText = if (Test-Path $Gi) { Get-Content $Gi -Raw -Encoding UTF8 } else { "" }
+if ($giText -notmatch "(?m)^/?\.research(/pdfs)?/?(\*)?\s*$") {
+  Add-Content $Gi "`r`n# Downloaded paper PDFs (copyrighted, large)`r`n.research/pdfs/" -Encoding UTF8
+  Write-Host "  [v] .gitignore  added .research/pdfs"
+}
 
 # --- CLAUDE.md : replace only the marker block, preserve the rest ---
 $ClaudeMd = Join-Path $Target "CLAUDE.md"
