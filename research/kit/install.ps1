@@ -1,7 +1,8 @@
 # Research pipeline installer (Windows PowerShell)
 #   .\install.ps1 C:\path\to\project
 #   .\install.ps1            <- install into the current directory
-param([string]$Target = ".")
+#   .\install.ps1 C:\path\to\project -WithAnimation   <- also set up Manim now (otherwise on first /research-animation)
+param([string]$Target = ".", [switch]$WithAnimation)
 
 $ErrorActionPreference = "Stop"
 $Src = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -26,19 +27,19 @@ New-Item -ItemType Directory -Force -Path (Join-Path $Dot "commands") | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $Dot "skills")   | Out-Null
 
 Copy-Item (Join-Path $Tpl "claude\commands\*") (Join-Path $Dot "commands") -Force
-foreach ($S in "research-sources", "research-figures") {
+foreach ($S in "research-sources", "research-figures", "research-animations") {
   $SkillDest = Join-Path $Dot "skills\$S"
   if (Test-Path $SkillDest) { Remove-Item $SkillDest -Recurse -Force }
   Copy-Item (Join-Path $Tpl "claude\skills\$S") (Join-Path $Dot "skills") -Recurse -Force
 }
-Write-Host "  [v] .claude/commands  (/research-list-paper, /research-summary-paper, /research-download-paper, /research-figure, /research-table)"
-Write-Host "  [v] .claude/skills/research-sources, research-figures"
+Write-Host "  [v] .claude/commands  (/research-list-paper, /research-summary-paper, /research-download-paper, /research-figure, /research-table, /research-animation)"
+Write-Host "  [v] .claude/skills/research-sources, research-figures, research-animations"
 
 # --- .research/ : outputs, never touched if present ---
-foreach ($D in "lists", "papers", "pdfs", "figures", "tables") {
+foreach ($D in "lists", "papers", "pdfs", "figures", "tables", "animations") {
   New-Item -ItemType Directory -Force -Path (Join-Path $Target ".research\$D") | Out-Null
 }
-Write-Host "  [v] .research/  (lists/, papers/, pdfs/, figures/, tables/)"
+Write-Host "  [v] .research/  (lists/, papers/, pdfs/, figures/, tables/, animations/)"
 
 # --- .gitignore : downloaded PDFs never go into the repository (copyright, size) ---
 $Gi = Join-Path $Target ".gitignore"
@@ -46,6 +47,11 @@ $giText = if (Test-Path $Gi) { Get-Content $Gi -Raw -Encoding UTF8 } else { "" }
 if ($giText -notmatch "(?m)^/?\.research(/pdfs)?/?(\*)?\s*$") {
   Add-Content $Gi "`r`n# Downloaded paper PDFs (copyrighted, large)`r`n.research/pdfs/" -Encoding UTF8
   Write-Host "  [v] .gitignore  added .research/pdfs"
+}
+$giText = if (Test-Path $Gi) { Get-Content $Gi -Raw -Encoding UTF8 } else { "" }
+if ($giText -notmatch "(?m)^/?\.research/?(\*)?\s*$|\.media/") {
+  Add-Content $Gi "`r`n# Manim render cache (regenerated on every render)`r`n.research/animations/*/.media/" -Encoding UTF8
+  Write-Host "  [v] .gitignore  added .research/animations/*/.media"
 }
 
 # --- CLAUDE.md : replace only the marker block, preserve the rest ---
@@ -76,6 +82,13 @@ if (Test-Path $ClaudeMd) {
 } else {
   Set-Content $ClaudeMd ("# CLAUDE.md`r`n`r`n" + $Snippet) -Encoding UTF8
   Write-Host "  [v] CLAUDE.md  created"
+}
+
+if ($WithAnimation) {
+  # python3 may be a Microsoft Store stub on Windows; python is the real interpreter
+  $Py = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+  & $Py (Join-Path $Target ".claude\skills\research-animations\scripts\animtool.py") setup
+  if ($LASTEXITCODE -ne 0) { Write-Host "  [!] Manim setup failed - /research-animation will offer it again" -ForegroundColor Yellow }
 }
 
 Write-Host ""

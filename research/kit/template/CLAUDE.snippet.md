@@ -1,7 +1,7 @@
 <!-- RESEARCH-PIPELINE:BEGIN (This block is managed by the install script. You may edit it, but reinstalling overwrites it) -->
 ## Research Pipeline
 
-`/research-list-paper`, `/research-summary-paper`, `/research-download-paper`, `/research-figure` and `/research-table` find, analyze and download papers and make figures and tables, saving under `.research/` (downloaded PDFs in `.research/pdfs/`, gitignored). Each command reads the skill it needs (`research-sources`, `research-figures`) — nothing else to load up front.
+`/research-list-paper`, `/research-summary-paper`, `/research-download-paper`, `/research-figure`, `/research-table` and `/research-animation` find, analyze and download papers and make figures, tables and animations, saving under `.research/` (downloaded PDFs in `.research/pdfs/`, gitignored). Each command reads the skill it needs (`research-sources`, `research-figures`, `research-animations`) — nothing else to load up front.
 
 ### Language
 

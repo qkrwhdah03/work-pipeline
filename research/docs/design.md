@@ -15,6 +15,7 @@ The problem both solve is trust. A literature answer is only useful if every pap
 | `/research-download-paper` | a title, link, arXiv ID, DOI, or numbers from the last list | `.research/pdfs/<year>. <title> (<venue>).pdf` + `.txt` metadata, `index.txt`, `references.bib` (or a folder the user names) |
 | `/research-figure` | a description of what to show | `.research/figures/<date>-<slug>/figure.{json,pptx,pdf,png}` |
 | `/research-table` | data to organize — pasted, a CSV, or numbers from named papers | `.research/tables/<date>-<slug>/table.{json,pptx,pdf,png}` |
+| `/research-animation` | a description of what to animate | `.research/animations/<date>-<slug>/{scene.py, <Scene>.mp4, <Scene>.gif, steps.png}` |
 
 ## Principles
 
@@ -48,6 +49,13 @@ Defaults: 10–15 papers, split between foundational work and the last ~2 years.
 Resolves each paper to its published title, venue and year (same checks as a list entry), then saves the PDF — to `.research/pdfs/` by default, or to the folder the user names in the request (their Downloads folder included) — as `<year>. <title> (<venue>).pdf` — e.g. `2024. SplaTAM - Splat, Track & Map 3D Gaussians for Dense RGB-D SLAM (CVPR).pdf`. The venue's camera-ready PDF comes first, arXiv is the fallback; only open, legitimate copies are used. A paywalled paper with no open copy is reported with its link instead.
 
 Beside each PDF goes a same-named `.txt` so the paper is easy to look up and cite later: authors, venue, the citation (slide-ready `Kerbl et al., <Title> (SIGGRAPH 2023)`, short and full), the links (venue page, DOI, arXiv, verified code and project page, the PDF's source), the BibTeX with where it came from (venue page → Crossref → arXiv) and the abstract. The per-paper files are the record; from them the script regenerates `index.txt` (one line per paper) and `references.bib` (all entries, for LaTeX) in the same folder on every download — one file per paper keeps a PDF and its metadata together when moved or deleted, and the two generated files give the overview without ever drifting from it.
+
+## /research-animation
+
+A short animation for a talk or project page — 10–30 s, one message, 4–8 steps — written as a Manim scene (`scene.py` is the spec) with the `paperanim` helpers, which give it the figures' palette, a white background and one sans font, so animation and figures read as one set. Scenes can be 2D (pipelines, data flow) or 3D (`ThreeDScene` — back-projection, camera rays, point clouds, with a moving camera and labels fixed to the frame).
+
+- **Review without watching.** Claude can't watch video, so `animtool.py render` turns a 480p draft into one image, `steps.png`: the last frame of every `play()`, with steps that change nothing (a `wait`) dropped. One image per round keeps the fix loop cheap; Manim's cache re-renders only the changed steps. Errors come back as one line (message + `scene.py` line); the full log stays in a file. Only the last round renders 1080p30 MP4 plus a GIF for slides.
+- **Dependencies stay out of the user's Python.** Manim needs cairo, pango and ffmpeg, which pip can't install on Linux without system packages. `animtool.py setup` — run once per machine after Claude asks — downloads micromamba if needed and installs Manim from conda-forge into `~/.cache/research-pipeline/manim/` (Windows `%LOCALAPPDATA%\research-pipeline\manim\`): the same path on Windows, macOS and Linux, no admin rights, shared by all projects. `install.sh --with-animation` / `install.ps1 -WithAnimation` does it at install time instead. LaTeX is optional; without it, formulas render through matplotlib or Pango markup.
 
 ## /research-figure and /research-table
 
@@ -111,16 +119,19 @@ Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Seman
 │   │   ├── research-summary-paper.md
 │   │   ├── research-download-paper.md
 │   │   ├── research-figure.md
-│   │   └── research-table.md
+│   │   ├── research-table.md
+│   │   └── research-animation.md
 │   └── skills/
 │       ├── research-sources/          source & verification rules + scripts/researchtool.py
-│       └── research-figures/          figure & table rules + scripts/figuretool.py
+│       ├── research-figures/          figure & table rules + scripts/figuretool.py
+│       └── research-animations/       animation rules + scripts/animtool.py, paperanim.py
 └── .research/
     ├── lists/                         /research-list-paper output
     ├── papers/                        /research-summary-paper output
     ├── pdfs/                          /research-download-paper output (gitignored)
     ├── figures/                       /research-figure output
-    └── tables/                        /research-table output
+    ├── tables/                        /research-table output
+    └── animations/                    /research-animation output (render cache .media/ gitignored)
 ```
 
 `/research-summary-paper` reads `.research/lists/` when placing a paper in its field, so earlier lists make later analyses better informed.

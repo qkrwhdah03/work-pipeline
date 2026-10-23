@@ -18,6 +18,8 @@ Pass the folder you do research in (a paper project, a reading-notes folder, …
 ./install.sh /path/to/my-research
 ```
 
+Add `--with-animation` (Windows: `-WithAnimation`) to set up Manim for `/research-animation` right away — otherwise it is offered on first use. It goes into its own environment in your user cache (~0.5 GB, once per machine), not into your Python.
+
 Safe to re-run to update. Saved lists and analyses in `.research/` are never touched, and only the research marker block in `CLAUDE.md` is replaced.
 
 ## Use
@@ -28,6 +30,7 @@ Safe to re-run to update. Saved lists and analyses in `.research/` are never tou
 /research-download-paper SplaTAM
 /research-figure overview of our pipeline: images → SfM → 3D Gaussians → rasterizer
 /research-table <paste your results>  — Ours was trained without depth prior
+/research-animation depth becomes 3D points, which set the RoPE angles inside the ViT
 ```
 
 | Command | Gives you | Saved to |
@@ -37,6 +40,7 @@ Safe to re-run to update. Saved lists and analyses in `.research/` are never tou
 | `/research-download-paper <paper>` | the PDF, named `<year>. <title> (<venue>).pdf`, a `.txt` beside it (citation, links, BibTeX), and `index.txt` + `references.bib` for the whole folder | `.research/pdfs/`, or a folder you name (`… to ~/papers`) |
 | `/research-figure <description>` | a paper figure: editable PPTX, PDF for LaTeX, PNG preview | `.research/figures/` |
 | `/research-table <data>` | a booktabs results table with notes under it: PPTX, PDF, PNG | `.research/tables/` |
+| `/research-animation <description>` | a short talk animation: MP4 (1080p), GIF, and the editable `scene.py` | `.research/animations/` |
 
 Options go in plain words after the topic: `since 2023`, `top 10`, `foundational only`. A paper can be a title, arXiv ID or URL, DOI, or a local PDF path.
 
@@ -56,8 +60,9 @@ Everything works without keys. Semantic Scholar is often rate-limited without on
 ```
 <folder>/
 ├── CLAUDE.md                     research block (commands, language, integrity rules)
-├── .claude/commands/             research-list-paper.md, research-summary-paper.md, research-download-paper.md, research-figure.md, research-table.md
+├── .claude/commands/             research-list-paper.md, research-summary-paper.md, research-download-paper.md, research-figure.md, research-animation.md, research-table.md
 ├── .claude/skills/research-sources/   (+ scripts/researchtool.py)
 ├── .claude/skills/research-figures/   (+ scripts/figuretool.py)
-└── .research/lists/, papers/, pdfs/, figures/, tables/   (pdfs/ is added to .gitignore)
+├── .claude/skills/research-animations/   (+ scripts/animtool.py, paperanim.py)
+└── .research/lists/, papers/, pdfs/, figures/, tables/, animations/   (pdfs/ and the render cache are added to .gitignore)
 ```
