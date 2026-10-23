@@ -42,7 +42,7 @@ RT download <venue page URL> <DOI> <arXiv id> --year <Year> --title "<Title>" --
 
 Pass the sources best first — the venue page gives the final camera-ready PDF; arXiv is the fallback. The script finds the PDF link on each page, checks the file really is a PDF, saves it to the folder from step 1, and skips files that already exist.
 
-Next to each PDF it writes `<same name>.txt`: title, authors, venue · year, the citation (short `Kerbl et al., SIGGRAPH 2023` and full), links (venue page, DOI, arXiv, code, project page, where the PDF came from), the BibTeX with its source (venue page first, then Crossref by DOI, then arXiv), and the abstract. Then it rebuilds two files in that folder from all the `.txt` files: `index.txt` (one line per paper) and `references.bib` (every BibTeX entry, ready for LaTeX). The `.txt` files are the record — the two others are regenerated, so don't edit them by hand; after deleting papers, run `RT index` to refresh them.
+Next to each PDF it writes `<same name>.txt`: title, authors, venue · year, the citation (slide-ready `Kerbl et al., <Title> (SIGGRAPH 2023)` as in `/research-list-paper`, short `Kerbl et al., SIGGRAPH 2023`, and full), links (venue page, DOI, arXiv, code, project page, where the PDF came from), the BibTeX with its source (venue page first, then Crossref by DOI, then arXiv), and the abstract. Then it rebuilds two files in that folder from all the `.txt` files: `index.txt` (one line per paper) and `references.bib` (every BibTeX entry, ready for LaTeX). The `.txt` files are the record — the two others are regenerated, so don't edit them by hand; after deleting papers, run `RT index` to refresh them.
 
 ## 4. Report
 

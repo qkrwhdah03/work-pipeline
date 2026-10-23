@@ -572,10 +572,19 @@ def cmd_download(a):
     die("no open PDF found — the paper may be paywalled. Tried: " + ("; ".join(tried) or "no PDF link in the sources given"))
 
 
-def citation_short(authors, venue, year):
+def citation_who(authors):
+    """'Kerbl et al.' — one author: 'Kerbl'; two: 'Kerbl and Kopanas' (same rule as /research-list-paper)."""
     last = [n.split()[-1] for n in authors if n.split()]
-    who = last[0] if len(last) == 1 else " and ".join(last) if len(last) == 2 else last[0] + " et al." if last else "?"
-    return "%s, %s %s" % (who, venue, year)
+    return last[0] if len(last) == 1 else " and ".join(last) if len(last) == 2 else last[0] + " et al." if last else "?"
+
+
+def citation_short(authors, venue, year):
+    return "%s, %s %s" % (citation_who(authors), venue, year)
+
+
+def citation_slide(authors, title, venue, year):
+    """Slide-ready, as in /research-list-paper: 'Kerbl et al., <Title> (SIGGRAPH 2023)'."""
+    return "%s, %s (%s %s)" % (citation_who(authors), title, venue, year)
 
 
 def write_paper_meta(pdf_path, a, pdf_url):
@@ -603,6 +612,7 @@ def write_paper_meta(pdf_path, a, pdf_url):
              ("arXiv", arx_id and "https://arxiv.org/abs/" + arx_id), ("Code", a.code), ("PDF source", pdf_url)]
     out = [a.title, ", ".join(authors) or "-", "%s %s" % (a.venue, a.year), "",
            "== Citation ==",
+           "Slide: " + citation_slide(authors, a.title, a.venue, a.year),
            "Short: " + citation_short(authors, a.venue, a.year),
            "Full:  %s. %s. %s, %s." % (", ".join(authors) or "?", a.title, a.venue, a.year), "",
            "== Links =="]
@@ -631,8 +641,8 @@ def read_paper_meta(path):
             sec = m.group(1)
         elif l.startswith("Saved:"):
             sec = None
-        elif sec == "Citation" and l.startswith("Short:"):
-            d["short"] = l[6:].strip()
+        elif sec == "Citation" and l.startswith(("Slide:", "Short:")):
+            d[l[:5].lower()] = l[6:].strip()
         elif sec == "Links" and ":" in l:
             k, v = l.split(":", 1)
             d["links"][k.strip()] = v.strip()
@@ -656,7 +666,8 @@ def rebuild_indexes(folder):
     for f, d in papers:
         ln = d["links"]
         link = ln.get("Venue page") or ln.get("DOI") or ln.get("arXiv") or "-"
-        rows.append("%s · %s · %s" % (d.get("short", "?"), d["title"], link))
+        cite = d.get("slide") or "%s, %s" % (d.get("short", "?"), d["title"])  # .txt files from before the Slide line
+        rows.append("%s · %s" % (cite, link))
         rows.append("    " + os.path.splitext(f)[0] + ".pdf")
         if d["bib"]:
             bib += ["% " + os.path.splitext(f)[0]] + d["bib"] + [""]
