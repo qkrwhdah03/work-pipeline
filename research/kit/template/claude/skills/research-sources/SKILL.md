@@ -1,6 +1,7 @@
 ---
 name: research-sources
 description: Source and verification rules for the research pipeline — which venues count as trusted, how to judge arXiv-only papers, how to verify a paper's title, venue, year, links and code before citing it, and which lookup services to use. Read this before running /research-list-paper or /research-summary-paper. Not for general web research.
+user-invocable: false
 ---
 
 # Research Sources & Verification

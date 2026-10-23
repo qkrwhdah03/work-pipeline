@@ -1,6 +1,7 @@
 ---
 name: dev-loop
 description: Dev loop reference for this project — the .dev/context spec system and boundary rules, order/result file formats, 04-devlog routing, commit convention, and the doc-update checklist. Use when running a /dev or /dev-optimize loop, or when editing .dev/context/ docs directly. Do not use for general coding questions or work outside the loop.
+user-invocable: false
 ---
 
 # Dev Loop Reference

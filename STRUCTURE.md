@@ -33,6 +33,14 @@ Anything deterministic a pipeline does on every run — fetching and parsing pag
 - Fail loudly: one `ERROR: …` line and a non-zero exit.
 - Commands say how to run it: `python3 <script> …` on macOS / Linux, `python <script> …` on Windows (where `python3` is usually a Microsoft Store stub that doesn't run).
 
+**Visibility: only commands are user-facing.**
+
+The user starts a pipeline through its commands. Skills are internal references that commands and agents load, so they stay out of the `/` menu where they would look like commands.
+
+- Every skill's frontmatter has `user-invocable: false`. Claude can still load it (the Skill tool, or a command that says to read it); it just isn't listed for the user to type.
+- Anything the user should be able to run directly is a command (`commands/<name>-….md`), not a skill.
+- Never set `disable-model-invocation: true` on a pipeline skill — that does the opposite and hides it from Claude.
+
 **Permissions: pre-approve narrowly.**
 
 A command's `allowed-tools` lists exactly what it needs, so it runs without repeated approval prompts but can't do more than its job.

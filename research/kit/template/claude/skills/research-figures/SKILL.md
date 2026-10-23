@@ -1,6 +1,7 @@
 ---
 name: research-figures
 description: How to build paper figures and paper-style (booktabs) tables as editable PPTX + PDF with figuretool.py — the JSON spec format, print sizes, style rules, and the build → preview → fix loop. Read this before running /research-figure or /research-table.
+user-invocable: false
 ---
 
 # Research Figures & Tables
