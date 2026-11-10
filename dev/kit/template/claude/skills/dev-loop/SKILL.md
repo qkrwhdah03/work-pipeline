@@ -25,13 +25,15 @@ Three principles explain every other design decision.
 
 | Command | Does |
 | --- | --- |
-| `preflight [--no-loop]` | git repo + clean working tree check; creates `.dev/loops/<LOOP_ID>/` and prints the ID |
+| `preflight [--no-loop]` | prints the commit mode; if on, clean working tree check; creates `.dev/loops/<LOOP_ID>/` and prints the ID |
+| `commit-mode` | `commit: on\|off (reason)` — see Commit Mode |
+| `snapshot <path>...` / `restore` | save the files about to be touched / put them back exactly — the rollback point when commit is off |
 | `devlog [limitations\|optimization\|log\|all] [--count]` | prints 04-devlog sections, or just their item counts |
 | `prune-loops [--keep 10]` | deletes the oldest loop folders |
 | `test [--loop LOOP_ID] -- <test command>` | runs the tests; prints exit code, summary and failure lines only; full log to `.dev/loops/<LOOP_ID>/test.log` |
 | `auto [--budget 6000] [--min-targets 3]` | after a passed loop: `optimize: yes/no` (3+ optimization targets, or one marked `[high]`) and `compact: yes/no` (context over budget and 25%+ larger than after the last compaction, or Loop Log over 20 rows) |
 | `memory [--budget 6000]` | context size per file (~tokens) and the compaction verdict |
-| `memory-check [--record]` | after compacting: every spec ID, heading and open devlog item of HEAD is still there; `--record` stores the new size in `.dev/memory.json` |
+| `memory-check [--record] [--base head\|snapshot]` | after compacting: every spec ID, heading and open devlog item of HEAD (commit off: of the snapshot) is still there; `--record` stores the new size in `.dev/memory.json` |
 
 Always run tests through `test` — raw test output is the biggest token cost in a loop.
 
@@ -86,7 +88,16 @@ Rule of thumb: **if not a single line of existing tests changes, it's E; if test
 
 - **B cannot modify test code.** Only C may modify tests, and C also delivers the verdict.
 - **E does not touch 01-features or 02-design.** F changes wording only, never content.
-- **Only D, E and F commit.**
+- **Only D, E and F commit** — and only when commit is on.
+
+## Commit Mode
+
+`.dev/config.json` → `"commit": "auto" | "on" | "off"`. `DT preflight` prints the result first; the orchestrator passes `Commit: on|off` to D, E and F.
+
+- `auto` (default): **on only in a git repo with a remote** (e.g. GitHub). No git, or git without a remote → off.
+- `on`: commit even without a remote (needs a git repo). `off`: never commit.
+
+With commit **off**: no clean-tree check (loops are not serialized by git, so never run two at once), no `git add`/`git commit`, D reports `RECORDED`, E reports `APPLIED`. E and F **never roll back with git** — the tree may hold the user's uncommitted work — they `DT snapshot` what they will touch first and `DT restore` on failure. The devlog's Loop Log is then the only history, so D keeps its row informative.
 
 ## Retry Limits and Stop Conditions
 
@@ -96,16 +107,16 @@ Stop the loop and report to the user — don't proceed — when:
 
 - A is not confident about the intent (it forks into multiple designs / conflicts with existing specs / the scope can't be stated in one line)
 - Schema migrations, mass deletions, major dependency upgrades, breaking changes to public APIs
-- The git working tree is not clean (loops are serialized)
+- Commit on and the git working tree is not clean (loops are serialized)
 
 ## Housekeeping — automatic E and F
 
-After a **passed** loop has committed, the orchestrator runs `devtool.py auto` and acts on it — numbers decide, not judgment:
+After a **passed** loop has been recorded (and committed, when commit is on), the orchestrator runs `devtool.py auto` and acts on it — numbers decide, not judgment:
 
 - `optimize: yes` → E with `Target: all`. D marks a target `[high]` when the complexity already gets in the way of the next change (a function over ~150 lines, the same logic in 3+ places, a module with 4+ responsibilities); one `[high]` is enough.
 - `compact: yes` → F, after E. Every loop A and D read all of `.dev/context/`, so its size is paid on every request; F shortens the wording, `memory-check` proves nothing was lost, and the size is recorded so the next compaction waits for real growth.
 
-Never after a failed loop (the tree isn't clean), never more than once per `/dev`. `/dev-optimize` and `/dev-optimize-memory` run them on demand.
+Never after a failed loop (its changes are unverified), never more than once per `/dev`. `/dev-optimize` and `/dev-optimize-memory` run them on demand.
 
 ## order / result Formats
 

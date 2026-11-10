@@ -56,6 +56,7 @@ Safe to re-run. Existing documents in `.dev/context/` are preserved, and only th
     │   └── 04-devlog.md
     ├── archive/                 old Loop Log rows moved out by compaction (not read by the loop)
     ├── memory.json              context size after the last compaction
+    ├── config.json              "commit": auto | on | off (kept on re-install)
     ├── loops/                   volatile — last 10 only (gitignored)
     └── templates/               order-B · order-C · result formats
 ```
@@ -108,6 +109,19 @@ Wait       stop until the next request
 ```
 
 ---
+
+## Commits (optional)
+
+`.dev/config.json` decides whether the loop commits:
+
+```json
+{ "commit": "auto" }
+```
+
+- `auto` (default) — commit only when the project is a git repo **with a remote** (e.g. connected to GitHub). No git, or no remote → the loop runs without committing.
+- `on` — always commit (needs `git init`). `off` — never commit.
+
+With commits off, the loop still designs, tests and updates `.dev/context/`; it just skips `git commit` and the clean-tree check, and E / F roll back from a file snapshot instead of git. Every `/dev` report shows the mode on its `Commit` line.
 
 ## First run
 

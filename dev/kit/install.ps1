@@ -50,6 +50,9 @@ Get-ChildItem (Join-Path $Tpl "dev\context") -File | ForEach-Object {
   if (Test-Path $dest) { Write-Host "  [-] .dev/context/$($_.Name) already exists, kept" }
   else { Copy-Item $_.FullName $dest; Write-Host "  [v] .dev/context/$($_.Name)" }
 }
+$Cfg = Join-Path $Dev "config.json"
+if (Test-Path $Cfg) { Write-Host "  [-] .dev/config.json already exists, kept" }
+else { Copy-Item (Join-Path $Tpl "dev\config.json") $Cfg; Write-Host "  [v] .dev/config.json  (commit: auto)" }
 Copy-Item (Join-Path $Tpl "dev\templates\*") (Join-Path $Dev "templates") -Force
 if (-not (Test-Path (Join-Path $Dev "loops\.gitkeep"))) { New-Item -ItemType File -Force -Path (Join-Path $Dev "loops\.gitkeep") | Out-Null }
 Write-Host "  [v] .dev/templates"

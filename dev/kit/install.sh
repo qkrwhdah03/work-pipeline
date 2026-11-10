@@ -30,6 +30,8 @@ for f in "$TPL/dev/context/"*.md; do
   if [ -e "$TARGET/.dev/context/$b" ]; then echo "  [-] .dev/context/$b already exists, kept"
   else cp "$f" "$TARGET/.dev/context/$b"; echo "  [v] .dev/context/$b"; fi
 done
+if [ -e "$TARGET/.dev/config.json" ]; then echo "  [-] .dev/config.json already exists, kept"
+else cp "$TPL/dev/config.json" "$TARGET/.dev/config.json"; echo "  [v] .dev/config.json  (commit: auto)"; fi
 cp -f "$TPL/dev/templates/"*.md "$TARGET/.dev/templates/"
 touch "$TARGET/.dev/loops/.gitkeep"
 echo "  [v] .dev/templates"

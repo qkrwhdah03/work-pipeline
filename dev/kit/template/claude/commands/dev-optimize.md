@@ -10,15 +10,15 @@ Optimization targets: **$ARGUMENTS** (if empty, E processes all of `## Optimizat
 
 `DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run), run from the project root.
 
-1. `DT preflight --no-loop` — **stop on `ERROR`** (not a git repo, or the working tree is not clean). E must roll back on failure, so a clean tree is a precondition.
+1. `DT preflight --no-loop` — **stop on `ERROR`** (commit on and the working tree is not clean). E must roll back on failure: with commit on, a clean tree is the precondition; with commit off, E uses `DT snapshot`/`restore` instead. Note the `commit:` line.
 2. Confirm the main dev loop is not running. E and the main loop touch the same code, so **never run them at the same time.**
 3. `DT devlog optimization --count` — if it is 0, stop and say so.
 
 ## Run
 
-Call `Task` with `subagent_type: dev-e-optimizer`. Pass: `Target: $ARGUMENTS` (or `Target: all`).
+Call `Task` with `subagent_type: dev-e-optimizer`. Pass: `Target: $ARGUMENTS` (or `Target: all`) and `Commit: on|off` from preflight.
 
-There is no limit on the number. E processes the target items in order, **one at a time**: refactor → test → commit (or roll back). If one item is rolled back, the remaining items still proceed.
+There is no limit on the number. E processes the target items in order, **one at a time**: refactor → test → commit (commit off: keep the change) or roll back. If one item is rolled back, the remaining items still proceed.
 
 ## Report
 
@@ -28,7 +28,7 @@ Optimization · done <n> / rolled back <n> / handed off <n>
 [1] <STATUS>  <devlog item>
     Changes  <file list>
     Tests    all <n> existing passing / 0 tests modified
-    Commit   <sha> <title>
+    Commit   <sha> <title>          ← commit off: 'off'
 [2] ...
 ```
 

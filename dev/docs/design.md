@@ -100,7 +100,7 @@ Only A reads the full context. It's the most expensive and most important step, 
 - B cannot modify test code. Otherwise it bends the code to fit the tests.
 - Only C may modify tests. C also gives the verdict.
 - E doesn't touch 01-features · 02-design.
-- Only D and E may commit.
+- Only D, E and F may commit, and only when commit is on (see Commit mode).
 
 ## Main loop
 
@@ -141,7 +141,7 @@ Six limits keep the B↔C loop from spinning forever or burning tokens.
 
 ## E · Optimization loop
 
-E runs after a loop has committed — never concurrently with one (they touch the same code, so they're serialized).
+E runs after a loop has passed and been recorded — never concurrently with one (they touch the same code, so they're serialized).
 
 ```mermaid
 flowchart TD
@@ -203,11 +203,25 @@ There is no design approval gate. Instead, these safeguards fill its place.
 | --- | --- |
 | Ask when intent is unclear | If A isn't confident, it talks with the user first instead of writing orders |
 | Stop on destructive changes | Schema migrations, mass deletions and major dependency upgrades stop and report |
-| Loop serialization | Loops start only on a clean git working tree. Keeps E and the main loop from editing the same files at once |
+| Loop serialization | With commit on, loops start only on a clean git working tree. Keeps E and the main loop from editing the same files at once |
 | Match check | At the end of every loop, D leaves one line on "does the implementation match the request" |
 | Design intent record | A's intent and the loop ID go into the commit message so the point of divergence can be traced |
 
 When a mismatch is detected, A reads it first on the next request. The line of defense moves from before to after, but stays inside the loop.
+
+## Commit mode
+
+Commits are optional. `.dev/config.json` holds `"commit": "auto" | "on" | "off"`; `auto` (the default) commits **only in a git repo that has a remote** — a project not connected to GitHub (no git, or a local repo without a remote) runs with commit off.
+
+Git did three jobs in the loop, so commit off replaces each:
+
+| Job | Commit on | Commit off |
+| --- | --- | --- |
+| History | one commit per loop / per E item | the devlog's Loop Log only |
+| Serialization | clean working tree before a loop | not enforced — don't run two loops at once |
+| Rollback (E, F) and F's no-loss check | `git checkout` / compare with `HEAD` | `devtool.py snapshot` before, `restore` on failure; `memory-check` compares with the snapshot |
+
+Rollback never uses git when commit is off, because the tree may hold uncommitted work that `git checkout` would destroy.
 
 ## Automation mapping
 
@@ -217,7 +231,7 @@ When a mismatch is detected, A reads it first on the next request. The line of d
 | Skill | loop rules (doc boundaries, permissions, retries, stop conditions, commit format, housekeeping), spec templates, doc update checklist |
 | Subagent | each of A–F — the implementation of context independence |
 | Hook | enforce tests before commit, load 04-devlog at session start |
-| Script | `devtool.py` — preflight, devlog sections, loop pruning, running tests with condensed output, and the numbers behind automatic E / F (`auto`, `memory`, `memory-check`) |
+| Script | `devtool.py` — preflight and commit mode, snapshot/restore, devlog sections, loop pruning, running tests with condensed output, and the numbers behind automatic E / F (`auto`, `memory`, `memory-check`) |
 | Command | `/dev`, `/dev-optimize`, `/dev-optimize-memory`, `/dev-limitations` |
 
 **Principle: always-needed rules in CLAUDE.md (kept short — it is read in every session and by every subagent), loop rules and procedures in skills, enforcement in hooks, isolation in subagents.**
@@ -236,6 +250,7 @@ Settled decisions
 | --- | --- |
 | `loops/` retention | last 10, the rest deleted automatically |
 | Project CLAUDE.md | if missing, A scans the repo and generates it on the first run |
-| Loop serialization | enforced by a clean git working tree check (no separate lock file) |
+| Loop serialization | enforced by a clean git working tree check when commit is on (no separate lock file) |
+| Commits | `.dev/config.json` `commit`: `auto` (default — only with a git remote), `on`, `off` |
 | E trigger | `/dev-optimize`, or automatic after a passed loop at 3+ targets or one `[high]` |
 | F trigger | `/dev-optimize-memory`, or automatic after a passed loop when the context is over budget and has grown 25% since the last compaction |

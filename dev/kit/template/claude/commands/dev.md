@@ -16,10 +16,11 @@ Report progress in one line per stage. Do not spell out intermediate results at 
 
 `DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (on Windows: `python …` — there `python3` is usually a Microsoft Store stub that doesn't run), run from the project root.
 
-Run `DT preflight`. It checks this is a git repo and **the working tree is clean** (this serializes loops, so E and the main loop never modify the same files at once), then creates `.dev/loops/<LOOP_ID>/` and prints `LOOP_ID: …`.
+Run `DT preflight`. It prints the **commit mode** first (`commit: on|off (reason)`, from `.dev/config.json`; `auto` = on only in a git repo with a remote). When commit is on, it checks **the working tree is clean** (this serializes loops, so E and the main loop never modify the same files at once). Then it creates `.dev/loops/<LOOP_ID>/` and prints `LOOP_ID: …`.
 
 - `ERROR: …` → stop and relay it (e.g. ask the user to commit or stash, then call again).
 - `context: missing` → fine; A will bootstrap.
+- Remember `Commit: on|off` and pass it to D, E and F below. When off, nothing is committed in this loop — say so in the report.
 
 ---
 
@@ -80,9 +81,10 @@ Call `subagent_type: dev-d-recorder`. Pass:
 LOOP_ID: <id>
 OUTCOME: PASSED
 Retries: <n>
+Commit: on | off
 ```
 
-D updates the documents and commits as **one loop = one commit**. Go to step 6 (housekeeping).
+D updates the documents and commits as **one loop = one commit** (commit off: updates the documents only). Go to step 6 (housekeeping).
 
 ---
 
@@ -95,18 +97,19 @@ LOOP_ID: <id>
 OUTCOME: FAILED
 Reason: retries exhausted | same failure twice in a row | B STUCK
 Blocked at: <C's last Failure Summary or B's STUCK report>
+Commit: on | off
 ```
 
-D records the cause of failure in 04-devlog. Do not touch the working tree — the user decides whether to revert. **Skip housekeeping** (the tree isn't clean); go to step 7.
+D records the cause of failure in 04-devlog. Do not touch the working tree — the user decides whether to revert. **Skip housekeeping** (the loop's changes are unverified); go to step 7. With commit off, the next `/dev` is not blocked by these changes, so tell the user they are still in the files.
 
 ---
 
 ## 6. Housekeeping (passed loops only)
 
-The loop's commit left the tree clean. Run `DT auto` — it decides from numbers, not judgment:
+The loop passed (commit on: its commit left the tree clean). Run `DT auto` — it decides from numbers, not judgment:
 
-- `optimize: yes` (optimization targets piled up, or one marked `[high]`) → call `subagent_type: dev-e-optimizer` with `Target: all`. E refactors behavior-preservingly, one item and one commit at a time, and rolls back anything that fails. Record its per-item STATUS lines for the report.
-- `compact: yes` (the context docs grew past their budget) → **after E**, call `subagent_type: dev-f-compactor` with `Trigger: auto`. F rewrites `.dev/context/` shorter without losing a fact, checks that with `DT memory-check`, and commits.
+- `optimize: yes` (optimization targets piled up, or one marked `[high]`) → call `subagent_type: dev-e-optimizer` with `Target: all` and `Commit: on|off`. E refactors behavior-preservingly, one item and one commit at a time (commit off: no commits), and rolls back anything that fails. Record its per-item STATUS lines for the report.
+- `compact: yes` (the context docs grew past their budget) → **after E**, call `subagent_type: dev-f-compactor` with `Trigger: auto` and `Commit: on|off`. F rewrites `.dev/context/` shorter without losing a fact, checks that with `DT memory-check`, and commits (commit off: no commit).
 - Both `no` → nothing to do.
 
 Never run these on a failed loop, and never more than once per `/dev`.
@@ -124,14 +127,14 @@ Intent    <A's one line>
 Changes   <B's file count> files, <n> tests added
 Verdict   <C's one line>  (<n> retries)
 Match     <D's one-line match verdict>
-Commit    <sha> <title>          ← on failure, 'no commit'
+Commit    <sha> <title>          ← on failure, 'no commit'; commit off, 'off (<reason>)'
 
 Limitations carried over to the next loop
 - ...
 
 Housekeeping            ← only if step 6 ran something
-Optimize  <n> committed / <n> rolled back / <n> handed off to A
-Memory    ~<before> -> ~<after> tokens · <sha>
+Optimize  <n> committed (or applied) / <n> rolled back / <n> handed off to A
+Memory    ~<before> -> ~<after> tokens · <sha or 'not committed'>
 ```
 
 If limitations have piled up, add one line saying they can be viewed with `/dev-limitations`.

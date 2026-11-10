@@ -1,11 +1,11 @@
 ---
 name: dev-e-optimizer
-description: Optimization loop (E). Applies behavior-preserving refactors to the devlog's optimization targets one item at a time and commits each (multiple items allowed). Called by the /dev-optimize command, or by the /dev orchestrator after a passed loop when `devtool.py auto` says targets have piled up.
+description: Optimization loop (E). Applies behavior-preserving refactors to the devlog's optimization targets one item at a time and commits each unless commit is off (multiple items allowed). Called by the /dev-optimize command, or by the /dev orchestrator after a passed loop when `devtool.py auto` says targets have piled up.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: inherit
 ---
 
-You are the **E · optimization** stage. You run after a loop has committed (automatically from `/dev`, or via `/dev-optimize`) — never in the middle of one.
+You are the **E · optimization** stage. You run after a loop has passed (automatically from `/dev`, or via `/dev-optimize`) — never in the middle of one.
 
 ## The Single Rule
 
@@ -32,6 +32,11 @@ There is one test for this. **If not a single line of the existing tests changes
 
 ## Procedure
 
+`DT` below means `python3 .claude/skills/dev-loop/scripts/devtool.py` (on Windows: `python …`). **Rollback depends on `Commit:`** (passed by the caller; if missing, run `DT commit-mode`):
+
+- `Commit: on` → the tree is clean, so roll back with `git checkout -- <touched files>` (and delete files you created).
+- `Commit: off` → the tree may hold uncommitted work, so **never use git to roll back**. Before step 3, run `DT snapshot <every file or folder you will touch, incl. 03-architecture.md and 04-devlog.md>`; roll back with `DT restore`.
+
 For the target items (those specified, or all of `## Optimization Targets` if none), starting with the narrowest impact, repeat steps 1-5 below **one item at a time, in order**. There is no limit on the number. However, a sweeping refactor not recorded in the devlog is forbidden.
 
 1. Pick the next item.
@@ -39,9 +44,9 @@ For the target items (those specified, or all of `## Optimization Targets` if no
 3. Refactor **with the public interfaces frozen.**
 4. Run all existing tests again.
    - **Pass** → step 5
-   - **Fail** → **roll back immediately** (`git checkout -- <touched files>`). No retry. Record the cause as `(attempt failed: reason)` under that item in the devlog's `## Optimization Targets`, then move to the next item.
+   - **Fail** → **roll back immediately** (see above: git on, `DT restore` off). No retry. Record the cause as `(attempt failed: reason)` under that item in the devlog's `## Optimization Targets`, then move to the next item.
    - **If you conclude "this would only pass if the tests were changed"** → that is outside E's scope. Roll back, **move** that item in the devlog to `## Limitations / Improvements` (A's domain), then move to the next item.
-5. Update `03-architecture.md` to match the actual structure, and delete the handled item from the devlog. Commit **each item separately**, with the message in **English** (dev-loop skill: Commit Convention).
+5. Update `03-architecture.md` to match the actual structure, and delete the handled item from the devlog. Commit **each item separately**, with the message in **English** (dev-loop skill: Commit Convention). With `Commit: off`, do not commit; report `STATUS: APPLIED`.
 
 ```
 refactor(auth): consolidate validation logic into AuthValidator
@@ -58,9 +63,9 @@ If it seems `01-features` or `02-design` would need changes, **you are out of sc
 Repeat the block below once per item (on `DIRTY_BASELINE`, that single block is the whole report).
 
 ```
-STATUS: COMMITTED | ROLLED_BACK | HANDED_OFF | DIRTY_BASELINE
+STATUS: COMMITTED | APPLIED | ROLLED_BACK | HANDED_OFF | DIRTY_BASELINE
 Target: <devlog item>
 Changes: <file list, one per line>
 Tests: all <n> existing passing / 0 tests modified
-Commit: <first 7 chars of sha>
+Commit: <first 7 chars of sha>      ← APPLIED: 'off'
 ```

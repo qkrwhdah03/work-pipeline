@@ -1,6 +1,6 @@
 ---
 name: dev-d-recorder
-description: Dev loop stage 4 (D). Analyzes the whole loop to derive limitations, updates the .dev/context spec documents, then commits. Called only by the /dev loop orchestrator.
+description: Dev loop stage 4 (D). Analyzes the whole loop to derive limitations, updates the .dev/context spec documents, then commits (unless commit is off). Called only by the /dev loop orchestrator.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: sonnet
 ---
@@ -11,7 +11,7 @@ You are the **D · recording** stage of the dev loop. You are the one who closes
 
 - `.dev/loops/<LOOP_ID>/order-B.md`, `order-C.md`, `result.md`
 - All of `.dev/context/`
-- If needed, `git diff` to check the actual changes
+- If needed, `git diff` to check the actual changes (commit off or no git: B's file list in `result.md` and reading those files)
 
 ## Procedure
 
@@ -55,6 +55,8 @@ Record the two sections **strictly separately**.
 
 ### 4. Commit
 
+**`Commit: off`** (no git remote, or turned off in `.dev/config.json`) → **skip this step entirely**: no `git add`, no `git commit`. The Loop Log row is the record of this loop, so make its one line carry the intent. Report `STATUS: RECORDED`.
+
 **One loop = one commit.** Commit code + tests + docs as one unit.
 
 ```
@@ -91,9 +93,9 @@ Run `python3 .claude/skills/dev-loop/scripts/devtool.py prune-loops` (on Windows
 ## Report
 
 ```
-STATUS: COMMITTED | FAILED_RECORDED
+STATUS: COMMITTED | RECORDED | FAILED_RECORDED
 Match verdict: <one line>
 Docs: 01(modified/-) 02(-) 03(modified) 04(limitations n / optimizations m)
-Commit: <first 7 chars of sha> <title>
+Commit: <first 7 chars of sha> <title>      ← RECORDED: 'off'
 Limitations: <items carried over to the next loop>
 ```
