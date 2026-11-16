@@ -12,6 +12,10 @@ Run from the project root.
     devtool.py memory [--budget 6000]       size of .dev/context (~tokens per file) and whether to compact it
     devtool.py memory-check [--record] [--base head|snapshot]   after compacting: nothing lost (spec IDs, headings, open items)
     devtool.py auto [--budget 6000] [--min-targets 3]   after a passed loop: run optimization (E) / compaction (F)?
+    devtool.py brainstorm add [text]        append one idea to .dev/brainstorm/notes.md (text from the argument or stdin)
+    devtool.py brainstorm show              print the open notes and the latest brief path
+    devtool.py brainstorm next              path for the next brief (nothing is written)
+    devtool.py brainstorm close <brief>     after the brief is written: move the notes to archive/, next round starts empty
 
 Output is compact plain text. Errors print one "ERROR: ..." line and exit 1.
 """
@@ -34,7 +38,11 @@ MEMORY = os.path.join(DEV, "memory.json")   # context size after the last compac
 CONFIG = os.path.join(DEV, "config.json")   # {"commit": "auto" | "on" | "off"}
 SNAP = os.path.join(LOOPS, "_snapshot")     # rollback point when commit is off (not a loop folder)
 SNAP_MANIFEST = os.path.join(SNAP, "manifest.json")
+BRAIN = os.path.join(DEV, "brainstorm")    # /dev-brainstorm notes and /dev-brief briefs (gitignored, user's language)
+NOTES = os.path.join(BRAIN, "notes.md")
+NOTE_HEAD = re.compile(r"^## #(\d+) · ", re.M)
 SPEC_ID = re.compile(r"\b[FDU]-\d{2,4}\b")
+SPEC_ITEM = re.compile(r"^#{2,3}\s+[FDU]-\d{2,4}\b", re.M)   # a spec item heading: "## F-001 · ..."
 KEEP_LOG_ROWS = 20
 
 
@@ -107,8 +115,7 @@ def cmd_preflight(a):
     else:
         print("tree: not checked (commit off: nothing is committed; E and F roll back with snapshot/restore)")
     ctx = os.path.join(DEV, "context")
-    has_ctx = os.path.isdir(ctx) and any(f.endswith(".md") for f in os.listdir(ctx))
-    print("context: " + ("present" if has_ctx else "missing — A will bootstrap"))
+    print("context: " + context_state())
     if a.no_loop:
         return
     today = time.strftime("%Y-%m-%d")
@@ -117,6 +124,18 @@ def cmd_preflight(a):
     os.makedirs(os.path.join(LOOPS, loop_id))
     os.makedirs(ctx, exist_ok=True)
     print("LOOP_ID: " + loop_id)
+
+
+def context_state():
+    """'present' once 01-03 hold a spec item heading (## F-001 ...); the installed templates have them only inside comments."""
+    if not os.path.isdir(CONTEXT) or not any(f.endswith(".md") for f in os.listdir(CONTEXT)):
+        return "missing — A will bootstrap"
+    for f in os.listdir(CONTEXT):
+        if f[:2] in ("01", "02", "03") and f.endswith(".md"):
+            text = re.sub(r"<!--.*?-->", "", read(os.path.join(CONTEXT, f)), flags=re.S)
+            if SPEC_ITEM.search(text):
+                return "present"
+    return "empty (templates only) — A will bootstrap"
 
 
 def sections(text):
@@ -401,6 +420,60 @@ def cmd_auto(a):
     print("compact: " + memory_state(a.budget)[3])
 
 
+NOTES_HEADER = ("# Brainstorm notes\n\n<!-- Raw ideas from /dev-brainstorm, verbatim. "
+                "/dev-brief turns them into a brief and moves this file to archive/. -->\n")
+
+
+def note_count(text):
+    return [int(n) for n in NOTE_HEAD.findall(text)]
+
+
+def briefs():
+    if not os.path.isdir(BRAIN):
+        return []
+    return sorted(f for f in os.listdir(BRAIN) if re.fullmatch(r"brief-\d{4}-\d{2}-\d{2}-\d{3}\.md", f))
+
+
+def cmd_brainstorm(a):
+    if a.action == "add":
+        text = " ".join(a.text).strip() if a.text else sys.stdin.buffer.read().decode("utf-8", "replace").strip()
+        if not text:
+            die("empty note. Usage: devtool.py brainstorm add <text>  (or the text on stdin)")
+        os.makedirs(BRAIN, exist_ok=True)
+        cur = read(NOTES) if os.path.isfile(NOTES) else NOTES_HEADER
+        n = max(note_count(cur), default=0) + 1
+        with open(NOTES, "w", encoding="utf-8") as f:
+            f.write(cur.rstrip("\n") + "\n\n## #%d · %s\n\n%s\n" % (n, time.strftime("%Y-%m-%d %H:%M"), text))
+        print("noted: #%d (%d open notes) -> %s" % (n, len(note_count(read(NOTES))), rel(NOTES)))
+    elif a.action == "show":
+        b = briefs()
+        print("latest brief: " + (rel(os.path.join(BRAIN, b[-1])) if b else "none"))
+        if not os.path.isfile(NOTES) or not note_count(read(NOTES)):
+            print("notes: 0 (nothing to brief — add ideas with /dev-brainstorm)")
+            return
+        text = read(NOTES)
+        print("notes: %d · %s" % (len(note_count(text)), rel(NOTES)))
+        print()
+        print(re.sub(r"\n{3,}", "\n\n", re.sub(r"<!--.*?-->", "", text, flags=re.S)).strip())
+    elif a.action == "next":
+        today = time.strftime("%Y-%m-%d")
+        nums = [int(f[-6:-3]) for f in briefs() if f[6:16] == today]
+        print("brief: " + rel(os.path.join(BRAIN, "brief-%s-%03d.md" % (today, max(nums, default=0) + 1))))
+    else:  # close
+        if not a.text:
+            die("usage: devtool.py brainstorm close <brief path>")
+        brief = a.text[0]
+        if not os.path.isfile(brief):
+            die("brief not found: " + brief + " (write it first)")
+        if not os.path.isfile(NOTES):
+            die("no open notes to close.")
+        arch = os.path.join(BRAIN, "archive")
+        os.makedirs(arch, exist_ok=True)
+        dst = os.path.join(arch, "notes-" + os.path.basename(brief)[len("brief-"):])
+        shutil.move(NOTES, dst)
+        print("closed: notes -> %s · next /dev-brainstorm starts a new round" % rel(dst))
+
+
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -416,9 +489,10 @@ def main():
     s = sub.add_parser("memory"); s.add_argument("--budget", type=int, default=6000)
     s = sub.add_parser("memory-check"); s.add_argument("--record", action="store_true"); s.add_argument("--base", choices=["head", "snapshot"])
     s = sub.add_parser("auto"); s.add_argument("--budget", type=int, default=6000); s.add_argument("--min-targets", type=int, default=3)
+    s = sub.add_parser("brainstorm"); s.add_argument("action", choices=["add", "show", "next", "close"]); s.add_argument("text", nargs="*")
     a = ap.parse_args()
     {"preflight": cmd_preflight, "commit-mode": cmd_commit_mode, "snapshot": cmd_snapshot, "restore": cmd_restore, "devlog": cmd_devlog, "prune-loops": cmd_prune, "test": cmd_test, "memory": cmd_memory,
-     "memory-check": cmd_memory_check, "auto": cmd_auto}[a.cmd](a)
+     "memory-check": cmd_memory_check, "auto": cmd_auto, "brainstorm": cmd_brainstorm}[a.cmd](a)
 
 
 if __name__ == "__main__":

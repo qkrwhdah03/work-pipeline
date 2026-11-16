@@ -1,6 +1,6 @@
 ---
 description: One dev loop iteration — design translation (A) → implementation (B) ∥ tests (C) → verdict → record and commit (D) → automatic optimization (E) / memory compaction (F) when due
-argument-hint: <dev request>
+argument-hint: <dev request | brief path [#n]>
 allowed-tools: Task, Read, Glob, Grep, Bash(python3 .claude/skills/dev-loop/scripts/devtool.py:*), Bash(python .claude/skills/dev-loop/scripts/devtool.py:*)
 ---
 
@@ -19,7 +19,7 @@ Report progress in one line per stage. Do not spell out intermediate results at 
 Run `DT preflight`. It prints the **commit mode** first (`commit: on|off (reason)`, from `.dev/config.json`; `auto` = on only in a git repo with a remote). When commit is on, it checks **the working tree is clean** (this serializes loops, so E and the main loop never modify the same files at once). Then it creates `.dev/loops/<LOOP_ID>/` and prints `LOOP_ID: …`.
 
 - `ERROR: …` → stop and relay it (e.g. ask the user to commit or stash, then call again).
-- `context: missing` → fine; A will bootstrap.
+- `context: missing` or `empty (templates only)` → fine; A will bootstrap. Pass the `context:` value to A.
 - Remember `Commit: on|off` and pass it to D, E and F below. When off, nothing is committed in this loop — say so in the report.
 
 ---
@@ -31,7 +31,10 @@ Call `Task` with `subagent_type: dev-a-architect`. Pass:
 ```
 LOOP_ID: <id>
 Request: $ARGUMENTS
+Context: <the preflight context value>
 ```
+
+If the request is a brief path from `/dev-brief` (`.dev/brainstorm/brief-….md [#n]`), pass it as is — A reads the brief itself.
 
 Branch on A's `STATUS`.
 

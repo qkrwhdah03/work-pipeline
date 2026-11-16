@@ -36,7 +36,7 @@ if (Test-Path $SkillDest) { Remove-Item $SkillDest -Recurse -Force }
 Copy-Item (Join-Path $Tpl "claude\skills\dev-loop") (Join-Path $Dot "skills") -Recurse -Force
 Copy-Item (Join-Path $Tpl "claude\hooks.optional.json") $Dot -Force
 Write-Host "  [v] .claude/agents  (6 agents, A~F)"
-Write-Host "  [v] .claude/commands  (/dev, /dev-optimize, /dev-optimize-memory, /dev-limitations)"
+Write-Host "  [v] .claude/commands  (/dev, /dev-brainstorm, /dev-brief, /dev-optimize, /dev-optimize-memory, /dev-limitations)"
 Write-Host "  [v] .claude/skills/dev-loop"
 
 # --- .dev/ : left untouched if already present (these are state files) ---
@@ -98,6 +98,10 @@ if (Test-Path $Gi) {
 } else {
   Set-Content $Gi "# Dev loop order files (volatile)`r`n.dev/loops/*`r`n!.dev/loops/.gitkeep" -Encoding UTF8
   Write-Host "  [v] .gitignore created"
+}
+if (-not ((Get-Content $Gi -Raw) -match "(?m)^/?\.dev(/brainstorm)?/?(\*)?\s*$")) {
+  Add-Content $Gi "`r`n# Dev brainstorm notes and briefs (personal scratch)`r`n.dev/brainstorm/" -Encoding UTF8
+  Write-Host "  [v] .gitignore  added .dev/brainstorm"
 }
 
 Write-Host ""

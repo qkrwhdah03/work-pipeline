@@ -77,7 +77,7 @@ Choose the prefix from `feat` / `fix` / `docs` / `chore` to match the nature of 
 
 ### 5. Loops that ended in failure
 
-If the orchestrator called you with `OUTCOME: FAILED` (retries exhausted or the same failure twice in a row):
+If the orchestrator called you with `OUTCOME: FAILED` (retries exhausted, the same failure twice in a row, or B stuck):
 
 - **Do not commit.**
 - Record the cause of failure in one line under `## Limitations / Improvements` in `04-devlog.md`: `<request summary> failed — <where it got stuck> (loop <ID>)`

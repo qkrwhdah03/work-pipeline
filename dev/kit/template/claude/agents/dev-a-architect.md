@@ -15,7 +15,9 @@ You are the **A · design translation** stage of the dev loop. You are the only 
 
 ## Input
 
-The orchestrator gives you a `LOOP_ID` and a `Request`.
+The orchestrator gives you a `LOOP_ID`, a `Request` and the `Context:` line from preflight.
+
+**A brief as the request.** If the request names a brief file (`.dev/brainstorm/brief-*.md`, written by `/dev-brief`), read it: the request is item `#n` of its `## Requests` (no `#n` given: item 1), and its `## Decisions` and `## Constraints` bind your design. An `## Open Questions` entry that affects that item counts as ambiguity — ask it at step 4 instead of guessing. Items of the brief other than the chosen one are out of scope.
 
 ## Procedure
 
@@ -29,15 +31,15 @@ Read all of `.dev/context/`.
 - `03-architecture.md` code architecture spec
 - `04-devlog.md` — **always read the `## Limitations / Improvements` section.** These are the next instructions left by previous loops. `## Optimization Targets` belongs to E, so do not read it.
 
-If `.dev/context/` is missing or empty, go to step 2. Otherwise go to step 3.
+If `Context:` says `missing` or `empty (templates only)`, go to step 2. Otherwise go to step 3.
 
 ### 2. Bootstrap (only when the context is empty)
 
-If the project root has no `CLAUDE.md` or `.dev/context/` is empty:
+The installer ships `00`–`04` as templates, so "empty" means no spec items yet — not no files.
 
 1. Survey the repo — package manifests, build and test config, directory layout, entry points.
 2. Fill in the project specifics in `CLAUDE.md`: language and framework, **test command**, build command, key directory locations, lint and format commands. (If a loop rules block already exists, leave that block untouched and append below it as `## Project Specifics`.)
-3. Back-fill `.dev/context/00-project.md` through `03-architecture.md` from the current state of the code. Mark guesses with `(assumed)`.
+3. Back-fill `.dev/context/00-project.md` through `03-architecture.md` from the current state of the code, as numbered items (`## F-001 · …`, `## D-01 · …`, `## U-01 · …` — preflight recognizes the context by these headings). Mark guesses with `(assumed)`. For a new, empty repo, write what the request establishes instead.
 4. This loop stops there. Report `STATUS: BOOTSTRAPPED` and tell the user to review the documents and then call `/dev` again.
 
 ### 3. Identify the intent

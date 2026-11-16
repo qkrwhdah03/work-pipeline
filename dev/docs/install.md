@@ -44,7 +44,7 @@ Safe to re-run. Existing documents in `.dev/context/` are preserved, and only th
 │   │   ├── dev-d-recorder.md
 │   │   ├── dev-e-optimizer.md
 │   │   └── dev-f-compactor.md
-│   ├── commands/                /dev · /dev-optimize · /dev-optimize-memory · /dev-limitations
+│   ├── commands/                /dev · /dev-brainstorm · /dev-brief · /dev-optimize · /dev-optimize-memory · /dev-limitations
 │   ├── skills/dev-loop/         procedures · templates · doc update checklist · scripts/devtool.py
 │   └── hooks.optional.json      enforce tests before commit (off by default)
 └── .dev/
@@ -58,7 +58,8 @@ Safe to re-run. Existing documents in `.dev/context/` are preserved, and only th
     ├── memory.json              context size after the last compaction
     ├── config.json              "commit": auto | on | off (kept on re-install)
     ├── loops/                   volatile — last 10 only (gitignored)
-    └── templates/               order-B · order-C · result formats
+    ├── brainstorm/              /dev-brainstorm notes · /dev-brief briefs (gitignored, created on first use)
+    └── templates/               order-B · order-C · result · brief formats
 ```
 
 ---
@@ -70,7 +71,7 @@ Split four ways, exactly as mapped in the design doc. **Always-needed rules go i
 | Mechanism | Owns | Why |
 | --- | --- | --- |
 | **subagent** | A–F | Skills can't isolate context. If everything piles up in one conversation, tokens grow quadratically as the loop gets longer. Permission boundaries (B can't edit tests) also only hold with isolation. |
-| **command** | `/dev` `/dev-optimize` `/dev-optimize-memory` `/dev-limitations` | Explicit entry points. This is the switch that makes it run "only during development". |
+| **command** | `/dev` `/dev-brainstorm` `/dev-brief` `/dev-optimize` `/dev-optimize-memory` `/dev-limitations` | Explicit entry points. This is the switch that makes it run "only during development". |
 | **CLAUDE.md** | the always-on minimum | Read in every session and by every subagent, so it holds only when the loop runs and the language rule (~350 tokens). |
 | **skill** | loop rules · procedures · templates | Read **only when a loop runs**: doc boundaries, permissions, retries, stop conditions, commit format, update checklist. |
 
@@ -102,6 +103,19 @@ D          match check → update 01–04 → one commit per loop
 Wait       stop until the next request
 ```
 
+Ideas that aren't a request yet:
+
+```
+/dev-brainstorm the login screen feels cluttered     jot it down verbatim — any number of times, no code touched
+/dev-brainstorm maybe dark mode, but not urgent
+/dev-brief                                            organize the notes → .dev/brainstorm/brief-<date>-NNN.md
+/dev .dev/brainstorm/brief-2026-11-16-001.md #2       run request 2 of the brief (no #n: request 1)
+```
+
+The brief lists the goal, ordered `/dev`-sized requests, decisions, constraints and open questions, each traced to its note (`#n`). Review or edit it before running `/dev` on it; A asks any open question that touches the chosen request. Notes and briefs are gitignored and written in your language.
+
+Housekeeping commands:
+
 ```
 /dev-optimize          behavior-preserving refactor of the devlog's 'Optimization Targets' (also automatic after a passed /dev at 3+ targets or one [high])
 /dev-optimize-memory   compact .dev/context — same meaning, fewer tokens (also automatic when it outgrows its budget)
@@ -125,7 +139,7 @@ With commits off, the loop still designs, tests and updates `.dev/context/`; it 
 
 ## First run
 
-If `.dev/context/` is empty, **the first `/dev` ends as a bootstrap.** A scans the repo, back-fills the project specifics in `CLAUDE.md` (test command, etc.) and documents `00–03` from the current code, then stops. Skim and fix those documents, then call `/dev` again.
+While `.dev/context/` holds only the installed templates (no `F-`/`D-`/`U-` items yet), **the first `/dev` ends as a bootstrap.** A scans the repo, back-fills the project specifics in `CLAUDE.md` (test command, etc.) and documents `00–03` from the current code, then stops. Skim and fix those documents, then call `/dev` again.
 
 For an existing project, don't skimp on this bootstrap loop. **The first 3–5 loops are not hands-off.** With empty context, A rescans all the code every time.
 

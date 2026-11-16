@@ -8,6 +8,8 @@ This pipeline takes one development request around a full loop — design · imp
 
 It solves two problems: the design slowly eroding when requests are handled at face value, and working context living only in the conversation and vanishing by the next request.
 
+Requests don't have to arrive fully formed: `/dev-brainstorm` collects loose ideas over time, and `/dev-brief` organizes them into a brief of `/dev`-sized requests (see Brainstorm → brief).
+
 At its core it is a single loop.
 
 ```
@@ -43,8 +45,13 @@ Three principles explain every other design decision.
 │   ├── 01-features.md        feature spec
 │   ├── 02-design.md          visual design
 │   ├── 03-architecture.md    code architecture
-│   └── 04-devlog.md          development context (limitations / optimization targets)
-└── loops/                   volatile — handoff between agents
+│   └── 04-devlog.md          development context (limitations / optimization targets / loop log)
+├── archive/                 old Loop Log rows moved out by compaction (not read by the loop)
+├── memory.json              context size after the last compaction
+├── config.json              "commit": auto | on | off
+├── templates/               order-B · order-C · result · brief formats
+├── brainstorm/              gitignored — /dev-brainstorm notes, /dev-brief briefs (user's language)
+└── loops/                   volatile, gitignored — handoff between agents
     └── 2026-10-21-001/
         ├── order-B.md        A → B
         ├── order-C.md        A → C
@@ -92,8 +99,9 @@ Each agent has an independent context. They are implemented as subagents.
 | **C** | write tests → run → verdict | order-C | tests, result | — |
 | **D** | analyze → surface limitations, update docs | order + result + context | full context | ✓ |
 | **E** | refactor + update architecture doc | code + existing tests + devlog | code, 03-architecture | ✓ |
+| **F** | compact the context docs, meaning-preserving | full context | `.dev/context`, `.dev/archive`, `memory.json` | ✓ |
 
-Only A reads the full context. It's the most expensive and most important step, so tokens are concentrated there while B · C are kept narrow.
+A is the only designer that reads the full context (D and F read it too, to record and to compact). Design is the most expensive and most important step, so tokens are concentrated there while B · C are kept narrow.
 
 **Permission boundaries**
 
@@ -114,11 +122,12 @@ flowchart TD
     C --> T
     T -->|"fail · max 3"| B
     T -->|pass| D["D · Record<br/>analyze · update docs · commit"]
-    D --> H{"devtool auto"}
-    H -->|"optimize: yes"| E["E · Optimize<br/>behavior-preserving refactors"]
-    H -->|"compact: yes"| F["F · Compact memory<br/>same meaning, fewer tokens"]
-    E --> F
-    H -->|both no| W[Wait for next request]
+    D --> H{"devtool auto<br/>optimize?"}
+    H -->|yes| E["E · Optimize<br/>behavior-preserving refactors"]
+    H -->|no| K{"compact?"}
+    E --> K
+    K -->|yes| F["F · Compact memory<br/>same meaning, fewer tokens"]
+    K -->|no| W[Wait for next request]
     F --> W
 ```
 
@@ -175,7 +184,25 @@ There is one test. **If existing tests don't change by a single line, it's E; if
 
 A and D read all of `.dev/context/` on every loop, so the docs' size is paid on every request, and it grows with the project. F rewrites them shorter **without changing their meaning**: prose becomes terse bullets, repeated explanations merge, resolved text that is already superseded goes, and Loop Log rows beyond the latest 20 move verbatim to `.dev/archive/loop-log.md` (not read by the loop). It never drops or renumbers a spec ID, never merges two open devlog items, and keeps every heading.
 
-`devtool.py memory-check` enforces this against HEAD — every spec ID (in context or archive), every heading and the open-item counts must survive, or F restores them or rolls back. The size after compaction is recorded in `.dev/memory.json`, and `/dev` runs F again only when the docs are over budget (~6000 tokens) **and** 25% larger than after the last compaction (or the Loop Log passes 20 rows) — so it doesn't churn on every loop. `/dev-optimize-memory` runs it on demand.
+`devtool.py memory-check` enforces this against HEAD (commit off: against a snapshot taken first) — every spec ID (in context or archive), every heading and the open-item counts must survive, or F restores them or rolls back. The size after compaction is recorded in `.dev/memory.json`, and `/dev` runs F again only when the docs are over budget (~6000 tokens) **and** 25% larger than after the last compaction (or the Loop Log passes 20 rows) — so it doesn't churn on every loop. `/dev-optimize-memory` runs it on demand.
+
+## Brainstorm → brief
+
+Not every request starts as a clear one-liner. Two commands sit **in front of** the loop and never touch code or `.dev/context/`:
+
+```mermaid
+flowchart LR
+    I["/dev-brainstorm idea<br/>any number of times"] --> N[".dev/brainstorm/notes.md<br/>verbatim, numbered"]
+    N --> BR["/dev-brief<br/>organize"]
+    BR --> F[".dev/brainstorm/brief-date-NNN.md"]
+    F --> DV["/dev brief #n"]
+```
+
+- **`/dev-brainstorm <idea>`** only records: the idea goes in verbatim (the user's words, not Claude's rewrite), numbered, with at most one clarifying question back. No design, no code reading — cheap enough to use whenever an idea comes up.
+- **`/dev-brief`** reads the open notes (and the previous brief if they build on it), checks them against `01-features` and the open limitations, and writes one brief: goal, an ordered list of `/dev`-sized requests with acceptance hints, decisions (a later note overrides an earlier one), constraints, open questions with options, conflicts with the existing spec, and what is out of scope. Every note is traced (`#n`); none is dropped silently, and nothing unstated is added except as a marked suggestion. The notes then move to `brainstorm/archive/`, so the next idea starts a new round.
+- **`/dev <brief> #n`** runs one request from the brief. A reads the brief as the request: item `#n` (default 1) is the scope, its decisions and constraints bind the design, and an open question touching that item is asked before any order is written — the usual ambiguity gate.
+
+Why the split: the loop needs a request whose scope fits one line; a pile of half-thoughts doesn't. Organizing them is a separate, reviewable step, so A never designs from a guess about what the notes meant. Notes and briefs are personal scratch in the user's language, so they are gitignored and never committed; what lands in the repository is the loop's English output as usual. `devtool.py brainstorm` does the bookkeeping (numbering, next brief path, archiving).
 
 ## Commit convention
 
@@ -230,13 +257,13 @@ Rollback never uses git when commit is off, because the tree may hold uncommitte
 | CLAUDE.md | only what must hold in every session: when the loop runs, the language rule, a pointer to the skill |
 | Skill | loop rules (doc boundaries, permissions, retries, stop conditions, commit format, housekeeping), spec templates, doc update checklist |
 | Subagent | each of A–F — the implementation of context independence |
-| Hook | enforce tests before commit, load 04-devlog at session start |
-| Script | `devtool.py` — preflight and commit mode, snapshot/restore, devlog sections, loop pruning, running tests with condensed output, and the numbers behind automatic E / F (`auto`, `memory`, `memory-check`) |
-| Command | `/dev`, `/dev-optimize`, `/dev-optimize-memory`, `/dev-limitations` |
+| Hook | optional: enforce tests before commit (`hooks.optional.json`, off by default) |
+| Script | `devtool.py` — preflight (commit mode, context state), snapshot/restore, devlog sections, loop pruning, running tests with condensed output, the numbers behind automatic E / F (`auto`, `memory`, `memory-check`), brainstorm bookkeeping |
+| Command | `/dev`, `/dev-brainstorm`, `/dev-brief`, `/dev-optimize`, `/dev-optimize-memory`, `/dev-limitations` |
 
 **Principle: always-needed rules in CLAUDE.md (kept short — it is read in every session and by every subagent), loop rules and procedures in skills, enforcement in hooks, isolation in subagents.**
 
-Two layers: the global level lays down only the loop structure, and each project's CLAUDE.md fills in the specifics (test command, directory locations, language · framework). If a project has no CLAUDE.md, A scans the repo on the first run and generates one automatically.
+Two layers in the project's CLAUDE.md: the installer's marker block lays down only the loop structure, and the `## Project Specifics` section holds the specifics (test command, directory locations, language · framework). While the context docs are still empty templates, the first `/dev` is a bootstrap: A scans the repo, fills in the specifics and back-fills `00–03`, then stops for review.
 
 ## Caveats when adopting
 
@@ -249,7 +276,8 @@ Settled decisions
 | Item | Decision |
 | --- | --- |
 | `loops/` retention | last 10, the rest deleted automatically |
-| Project CLAUDE.md | if missing, A scans the repo and generates it on the first run |
+| Project specifics | filled in by A's bootstrap on the first `/dev` (context still templates only) |
+| Loose ideas | `/dev-brainstorm` → `/dev-brief` → `/dev <brief> #n`; notes and briefs gitignored |
 | Loop serialization | enforced by a clean git working tree check when commit is on (no separate lock file) |
 | Commits | `.dev/config.json` `commit`: `auto` (default — only with a git remote), `on`, `off` |
 | E trigger | `/dev-optimize`, or automatic after a passed loop at 3+ targets or one `[high]` |

@@ -1,6 +1,6 @@
 ---
 name: dev-loop
-description: Dev loop reference for this project — the .dev/context spec system and boundary rules, permissions, retry limits and stop conditions, order/result file formats, 04-devlog routing, commit convention, automatic optimization and memory compaction, and the doc-update checklist. Use when running a /dev or /dev-optimize loop, or when editing .dev/context/ docs directly. Do not use for general coding questions or work outside the loop.
+description: Dev loop reference for this project — the .dev/context spec system and boundary rules, permissions, retry limits and stop conditions, order/result file formats, 04-devlog routing, commit convention, automatic optimization and memory compaction, brainstorm briefs, and the doc-update checklist. Use when running a /dev, /dev-optimize or /dev-brief command, or when editing .dev/context/ docs directly. Do not use for general coding questions or work outside the loop.
 user-invocable: false
 ---
 
@@ -25,7 +25,7 @@ Three principles explain every other design decision.
 
 | Command | Does |
 | --- | --- |
-| `preflight [--no-loop]` | prints the commit mode; if on, clean working tree check; creates `.dev/loops/<LOOP_ID>/` and prints the ID |
+| `preflight [--no-loop]` | prints the commit mode; if on, clean working tree check; `context: present \| empty (templates only) \| missing`; creates `.dev/loops/<LOOP_ID>/` and prints the ID |
 | `commit-mode` | `commit: on\|off (reason)` — see Commit Mode |
 | `snapshot <path>...` / `restore` | save the files about to be touched / put them back exactly — the rollback point when commit is off |
 | `devlog [limitations\|optimization\|log\|all] [--count]` | prints 04-devlog sections, or just their item counts |
@@ -34,12 +34,13 @@ Three principles explain every other design decision.
 | `auto [--budget 6000] [--min-targets 3]` | after a passed loop: `optimize: yes/no` (3+ optimization targets, or one marked `[high]`) and `compact: yes/no` (context over budget and 25%+ larger than after the last compaction, or Loop Log over 20 rows) |
 | `memory [--budget 6000]` | context size per file (~tokens) and the compaction verdict |
 | `memory-check [--record] [--base head\|snapshot]` | after compacting: every spec ID, heading and open devlog item of HEAD (commit off: of the snapshot) is still there; `--record` stores the new size in `.dev/memory.json` |
+| `brainstorm add\|show\|next\|close` | `/dev-brainstorm` · `/dev-brief` bookkeeping: append a note verbatim (stdin) / print open notes / next brief path / move the notes to `archive/` once the brief is written |
 
 Always run tests through `test` — raw test output is the biggest token cost in a loop.
 
 ## Docs = State
 
-There is no separate context store: the files in `.dev/context/` are the project's state. `.dev/loops/` is volatile (order files between agents, latest 10 kept); `.dev/archive/` holds history moved out by compaction and is not read by the loop.
+There is no separate context store: the files in `.dev/context/` are the project's state. `.dev/loops/` is volatile (order files between agents, latest 10 kept); `.dev/archive/` holds history moved out by compaction and is not read by the loop. `.dev/brainstorm/` (gitignored, user's language) holds `/dev-brainstorm` notes and `/dev-brief` briefs; a brief enters the loop only when passed to `/dev` (`/dev <brief> #n`), and A treats it as the request.
 
 | Doc | Question | Changes when |
 | --- | --- | --- |

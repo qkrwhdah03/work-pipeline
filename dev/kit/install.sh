@@ -20,7 +20,7 @@ rm -rf "$TARGET/.claude/skills/dev-loop"
 cp -R  "$TPL/claude/skills/dev-loop" "$TARGET/.claude/skills/"
 cp -f  "$TPL/claude/hooks.optional.json" "$TARGET/.claude/"
 echo "  [v] .claude/agents  (6 agents, A~F)"
-echo "  [v] .claude/commands  (/dev, /dev-optimize, /dev-optimize-memory, /dev-limitations)"
+echo "  [v] .claude/commands  (/dev, /dev-brainstorm, /dev-brief, /dev-optimize, /dev-optimize-memory, /dev-limitations)"
 echo "  [v] .claude/skills/dev-loop"
 
 # --- .dev/ : existing files preserved ---
@@ -66,6 +66,11 @@ if [ -f "$GI" ] && grep -qE "^/?\.dev(/loops)?/?(\*)?[[:space:]]*$" "$GI"; then 
 else
   printf '\n# Dev loop order files (volatile)\n.dev/loops/*\n!.dev/loops/.gitkeep\n' >> "$GI"
   echo "  [v] .gitignore  added .dev/loops"
+fi
+if grep -qE "^/?\.dev(/brainstorm)?/?(\*)?[[:space:]]*$" "$GI"; then :
+else
+  printf '\n# Dev brainstorm notes and briefs (personal scratch)\n.dev/brainstorm/\n' >> "$GI"
+  echo "  [v] .gitignore  added .dev/brainstorm"
 fi
 
 echo

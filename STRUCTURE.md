@@ -11,7 +11,7 @@ These apply to every pipeline in this repository.
 - Everything in this repository is written in English — docs, skills, agents, commands, templates, scripts, and the structural headings the pipelines look up.
 - The rule of thumb: **what goes public, in the repository and its version history, is English; what the user reads is in the user's language.**
 - English, whatever language the request is in: code comments, context documents (`.dev/context/`), `CLAUDE.md`, and commit messages (subject and body). The pipeline translates the request and its own notes; it doesn't mix languages in these.
-- The user's language (the language of their request): replies and reports to the user, gitignored scratch files (`.dev/loops/` order · result files), and material written for the user to read in `.research/` (paper lists, summaries).
+- The user's language (the language of their request): replies and reports to the user, gitignored scratch files (`.dev/loops/` order · result files, `.dev/brainstorm/` notes · briefs), and material written for the user to read in `.research/` (paper lists, summaries).
 - Identifiers the pipeline depends on stay in English even in the user's output: structural headings, STATUS codes, commit field names, trailers, spec IDs.
 - Each pipeline states this in a `### Language` section of its CLAUDE snippet, so it takes effect in the installed project.
 
@@ -130,7 +130,7 @@ Installing must be safe to re-run. Updating uses the same command.
 | --- | --- | --- |
 | Pipeline folder | `<name>/` | `dev/` |
 | Main command | `/<name>` | `/dev` |
-| Other commands | `/<name>-<verb or noun>` | `/dev-optimize`, `/dev-limitations` |
+| Other commands | `/<name>-<verb or noun>` | `/dev-optimize`, `/dev-brief` |
 | Command file | `commands/<command without />.md` | `commands/dev-optimize.md` |
 | Agent | `<name>-<role letter>-<role>` — letters in run order | `dev-a-architect`, `dev-e-optimizer` |
 | Skill | `<name>-<topic>` | `dev-loop` |
@@ -161,5 +161,5 @@ Installing must be safe to re-run. Updating uses the same command.
 
 | Name | What it does | Commands | Skills | Agents |
 | --- | --- | --- | --- | --- |
-| [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit; refactoring and context compaction follow automatically when due | `/dev` `/dev-optimize` `/dev-optimize-memory` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-f-compactor` |
+| [dev](dev/docs/design.md) | Takes one development request around a full loop: design → implement → test → document → commit; refactoring and context compaction follow automatically when due; loose ideas are collected and organized into a brief that `/dev` runs | `/dev` `/dev-brainstorm` `/dev-brief` `/dev-optimize` `/dev-optimize-memory` `/dev-limitations` | `dev-loop` | `dev-a-architect` … `dev-f-compactor` |
 | [research](research/docs/design.md) | Finds the key papers on a topic from trusted venues, and analyzes one paper: big picture, claims, evidence, limitations; downloads PDFs; makes paper figures and booktabs tables as PPTX + PDF, and short Manim animations for talks | `/research-list-paper` `/research-summary-paper` `/research-download-paper` `/research-figure` `/research-table` `/research-animation` | `research-sources` `research-figures` `research-animations` | — |
