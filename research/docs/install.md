@@ -64,5 +64,5 @@ Everything works without keys. Semantic Scholar is often rate-limited without on
 ├── .claude/skills/research-sources/   (+ scripts/researchtool.py)
 ├── .claude/skills/research-figures/   (+ scripts/figuretool.py)
 ├── .claude/skills/research-animations/   (+ scripts/animtool.py, paperanim.py)
-└── .research/lists/, papers/, pdfs/, figures/, tables/, animations/   (pdfs/ and the render cache are added to .gitignore)
+└── .research/lists/, papers/, pdfs/, figures/, tables/, animations/   (pdfs/, the full-text cache .research/cache/ and the render cache are added to .gitignore)
 ```

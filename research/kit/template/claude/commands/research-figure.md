@@ -22,7 +22,7 @@ Reply in the user's language. Text **inside** the figure is in the language of t
   - **Concept / comparison** — side-by-side panels (ours vs. prior work, before vs. after), with short labels.
   - **Architecture** — modules, tensors and their shapes, skip connections.
   - **Data plot** — numbers over a variable (see "Data plots" in the skill).
-- Pick the width: single column (3.25 in) unless the content is wide — a long pipeline or several panels → full width (6.875 in, `"size": [6.875, "auto"]`). If the description names the venue, use its sizes.
+- Pick the width from the venue's sizes in the skill (CVPR-style when no venue is named): one column (3.25 in) unless the content is wide — a long pipeline or several panels → full width (6.875 in, `"size": [6.875, "auto"]`). Single-column venues (NeurIPS, ICLR, ECCV) use their text width.
 - Several panels → one `group` per panel with `"label": "(a) …"`, so the script centers each label under its panel (skill: Style rules).
 - If the description mentions a method or paper you have notes on (`.research/papers/`), read them for the correct stage names.
 - Only if the description is too vague to draw (no idea what the parts are), ask one short question.

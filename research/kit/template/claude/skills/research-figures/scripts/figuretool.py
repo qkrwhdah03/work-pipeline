@@ -37,6 +37,13 @@ def die(msg):
     sys.exit(1)
 
 
+def num(v, what):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        die("%s must be a number, got %r" % (what, v))
+
+
 def emu(v):
     return int(round(float(v) * EMU * SCALE))
 
@@ -50,7 +57,14 @@ def hexcolor(c, default="000000"):
 
 # ------------------------------------------------------------------ text
 
-RUN = re.compile(r"(\{size:[0-9.]+\|.+?\}|\*\*.+?\*\*|__.+?__|\^\{.+?\}|_\{.+?\}|\*[^*\s][^*]*?\*)")
+def xattr(v):
+    """Text for an XML attribute value (quotes escaped too)."""
+    return escape(str(v), {'"': "&quot;"})
+
+
+# {size:N|...} may hold one level of braced markup inside, e.g. {size:11|x^{2}}
+SIZE_BODY = r"(?:[^{}]|\{[^{}]*\})+"
+RUN = re.compile(r"(\{size:[0-9.]+\|" + SIZE_BODY + r"\}|\*\*.+?\*\*|__.+?__|\^\{.+?\}|_\{.+?\}|\*[^*\s][^*]*?\*)")
 
 # Arial / Helvetica advance widths (1/1000 em) for ASCII 32..126 — Liberation Sans shares them.
 ARIAL = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278,
@@ -127,7 +141,7 @@ def runs_xml(text, size, color, bold=False, italic=False, font=None, underline=F
             attrs += ' u="sng"'
         if base:
             attrs += ' baseline="%d"' % base
-        f = ('<a:latin typeface="%s"/><a:ea typeface="%s"/><a:cs typeface="%s"/>' % ((escape(font),) * 3)) if font else ""
+        f = ('<a:latin typeface="%s"/><a:ea typeface="%s"/><a:cs typeface="%s"/>' % ((xattr(font),) * 3)) if font else ""
         out.append('<a:r><a:rPr %s dirty="0"><a:solidFill><a:srgbClr val="%s"/></a:solidFill>%s</a:rPr>'
                    '<a:t>%s</a:t></a:r>' % (attrs, color, f, escape(part)))
     return "".join(out)
@@ -207,7 +221,11 @@ class Slide:
             int(float(lw) * 12700 * SCALE), hexcolor(color), d, hs, he)
 
     def box(self, e, text_only=False):
-        x, y, w, h = (float(e[k]) for k in ("x", "y", "w", "h"))
+        missing = [k for k in ("x", "y", "w", "h") if e.get(k) is None]
+        if missing:
+            die("%s %r needs %s" % ("text" if text_only else "box", e.get("id") or str(e.get("text", ""))[:30],
+                                    ", ".join(missing)))
+        x, y, w, h = (num(e[k], k) for k in ("x", "y", "w", "h"))
         if e.get("id"):
             self.boxes[e["id"]] = (x, y, w, h)
         text = e.get("text", "")
@@ -253,7 +271,7 @@ class Slide:
             '<a:prstGeom prst="%s">%s</a:prstGeom>%s%s</p:spPr>'
             '<p:txBody><a:bodyPr wrap="%s" lIns="%d" tIns="%d" rIns="%d" bIns="%d" anchor="%s" rtlCol="0">'
             '<a:noAutofit/></a:bodyPr><a:lstStyle/>%s</p:txBody></p:sp>' % (
-                sid, escape(e.get("id", "Shape %d" % sid)), rot, emu(x), emu(y), emu(w), emu(h), geom, adj,
+                sid, xattr(e.get("id") or "Shape %d" % sid), rot, emu(x), emu(y), emu(w), emu(h), geom, adj,
                 fill_xml, ln, "none" if text_only else "square", inset, inset, inset, inset, va, body))
 
     def check_fit(self, e, text, w, h, text_only):
@@ -347,6 +365,10 @@ class Slide:
                       "overlap": e.get("overlap", False)}, text_only=True)
 
     def image(self, e, base_dir):
+        if not e.get("path"):
+            die("image element needs a path")
+        if e.get("x") is None or e.get("y") is None:
+            die("image %s needs x and y" % e["path"])
         path = os.path.join(base_dir, e["path"]) if not os.path.isabs(e["path"]) else e["path"]
         if not os.path.isfile(path):
             die("image not found: " + path)
@@ -380,44 +402,94 @@ class Slide:
 
     def table(self, e):
         """Paper-style (booktabs) table: top/bottom rules, a rule under the header, no vertical lines."""
-        cols = e["columns"]
+        cols = e.get("columns")
+        if not isinstance(cols, list) or not cols:
+            die("table needs \"columns\": a non-empty list of header strings")
+        cols = [str(c) for c in cols]
         n = len(cols)
-        rows = e.get("rows", [])
+        rows = e.get("rows") or []
+        if not isinstance(rows, list):
+            die("table \"rows\" must be a list of rows (lists of cells) or \"midrule\"")
+        notes = e.get("notes") or []
+        if isinstance(notes, str):
+            notes = [notes]  # one note given as a plain string
         font = e.get("font", self.font)
         size = float(e.get("size", self.size))
         x, y = float(e.get("x", 0)), float(e.get("y", 0))
-        widths = [float(v) for v in e.get("col_widths", [])] or [float(e.get("w", 3.25)) / n] * n
+        widths = [float(v) for v in e.get("col_widths") or []] or [float(e.get("w", 3.25)) / n] * n
         if len(widths) != n:
-            die("col_widths must have one entry per column (%d)" % n)
+            die("col_widths has %d entries but there are %d columns" % (len(widths), n))
         align = e.get("align") or (["l"] + ["c"] * (n - 1))
+        for key, val in (("align", align), ("best", e.get("best")), ("decimals", e.get("decimals"))):
+            if val is not None and (not isinstance(val, list) or len(val) != n):
+                die("table \"%s\" needs one entry per column (%d), got %r" % (key, n, val))
+        align = [{"left": "l", "center": "c", "right": "r"}.get(a, a) for a in align]
+        groups = e.get("header_groups") or []
+        for g in groups:
+            sp = g.get("span") if isinstance(g, dict) else None
+            if not (isinstance(sp, list) and len(sp) == 2 and all(isinstance(v, int) for v in sp)
+                    and 0 <= sp[0] <= sp[1] < n):
+                die("header_groups span %r must be [first, last] column indices, 0-based, within 0..%d" % (sp, n - 1))
+        taken = sorted(tuple(g["span"]) for g in groups)
+        for (a0, a1), (b0, b1) in zip(taken, taken[1:]):
+            if b0 <= a1:
+                die("header_groups spans %r and %r overlap" % ([a0, a1], [b0, b1]))
         row_h = float(e.get("row_h", size / 72 * 1.75))
         heavy, light = float(e.get("heavy", 1.0)), float(e.get("light", 0.5))
 
         grid = []  # (cells, kind) — kind: group | header | body ; cells = [(text, span, align)]
-        if e.get("header_groups"):
+        if groups:
             cells, col = [], 0
-            for g in sorted(e["header_groups"], key=lambda g: g["span"][0]):
+            for g in sorted(groups, key=lambda g: g["span"][0]):
                 a0, a1 = g["span"]
                 while col < a0:
                     cells.append(("", 1, "c")); col += 1
-                cells.append((g["text"], a1 - a0 + 1, "c")); col = a1 + 1
+                cells.append((str(g.get("text", "")), a1 - a0 + 1, "c")); col = a1 + 1
             while col < n:
                 cells.append(("", 1, "c")); col += 1
             grid.append((cells, "group"))
         grid.append(([(c, 1, align[i]) for i, c in enumerate(cols)], "header"))
-        body_rows = [r for r in rows if not (r == "midrule" or isinstance(r, dict))]
+        for r in rows:
+            if not (r == "midrule" or isinstance(r, (dict, list))):
+                die("table row %r must be a list of cells or \"midrule\"" % (r,))
+        body_rows = [r for r in rows if isinstance(r, list)]
         for r in body_rows:
             if len(r) != n:
                 die("row has %d cells, expected %d: %r" % (len(r), n, r))
-        body_rows = mark_best(format_decimals([[str(c) for c in r] for r in body_rows], e.get("decimals")),
-                              e.get("best"), e.get("second", True))
+        body_rows = mark_best(format_decimals([["" if c is None else str(c) for c in r] for r in body_rows],
+                                              e.get("decimals")), e.get("best"), e.get("second", True))
         mid_after, it = set(), iter(body_rows)
         for r in rows:
-            if r == "midrule" or (isinstance(r, dict) and r.get("rule")):
-                mid_after.add(len(grid) - 1)
+            if not isinstance(r, list):  # "midrule" or {"rule": true}
+                if r == "midrule" or r.get("rule"):
+                    mid_after.add(len(grid) - 1)
                 continue
             grid.append(([(c, 1, align[i]) for i, c in enumerate(next(it))], "body"))
-        header_last = 1 if e.get("header_groups") else 0
+        header_last = 1 if groups else 0
+        # Cells don't wrap in a paper table: warn when one is wider than its column (Arial glyph widths,
+        # bold for bolded cells — close enough for Times New Roman too, which runs ~5-10% narrower).
+        if not e.get("_internal"):
+            tname = e.get("id") or "table"
+            for cells, kind in grid:
+                col = 0
+                for text, span, _ in cells:
+                    if text and kind != "group":
+                        bold = kind == "header" and e.get("bold_header", False)
+                        need = max(text_width(l, size, bold) for l in str(text).split("\n"))
+                        room = sum(widths[col:col + span]) - 0.08  # cell margins
+                        if need * 1.03 > room:
+                            self.warnings.append("%s: cell %r is ~%.2f in wide, column %d has %.2f in — it will wrap "
+                                                 "and the table grows taller; widen col_widths[%d] or shorten it"
+                                                 % (tname, text, need, col, room, col))
+                    col += span
+            for g in groups:
+                a0, a1 = g["span"]
+                need = text_width(str(g.get("text", "")), size, e.get("bold_header", False))
+                if need * 1.03 > sum(widths[a0:a1 + 1]) - 0.02:
+                    self.warnings.append("%s: header group %r (~%.2f in) is wider than its columns (%.2f in)"
+                                         % (tname, g.get("text"), need, sum(widths[a0:a1 + 1])))
+            if any(str(text).count("\n") for cells, _ in grid for text, _, _ in cells):
+                self.warnings.append("%s: a cell has several lines — raise row_h so every row fits" % tname)
 
         def border(side, w):
             tag = {"top": "lnT", "bottom": "lnB", "left": "lnL", "right": "lnR"}[side]
@@ -425,9 +497,6 @@ class Slide:
                 return "<a:%s w=\"0\"><a:noFill/></a:%s>" % (tag, tag)
             return '<a:%s w="%d"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:%s>' % (tag, int(w * 12700 * SCALE), tag)
 
-        group_spans = []
-        if e.get("header_groups"):
-            group_spans = [tuple(g["span"]) for g in e["header_groups"] if g.get("rule", True)]
         trs = []
         for ri, (cells, kind) in enumerate(grid):
             tcs, col = [], 0
@@ -468,12 +537,12 @@ class Slide:
             '<a:tbl><a:tblPr firstRow="0" bandRow="0"/><a:tblGrid>%s</a:tblGrid>%s</a:tbl></a:graphicData></a:graphic></p:graphicFrame>'
             % (sid, sid, emu(x), emu(y), emu(total_w), emu(total_h),
                "".join('<a:gridCol w="%d"/>' % emu(w) for w in widths), "".join(trs)))
-        if e.get("header_groups"):
+        if groups:
             trim = 0.04  # like booktabs \cmidrule(lr): a gap between neighbouring group rules
-            for g in e["header_groups"]:
+            for g in groups:
                 a0, a1 = g["span"]
                 gx, gw = x + sum(widths[:a0]), sum(widths[a0:a1 + 1])
-                self.box({"x": gx, "y": y, "w": gw, "h": row_h, "text": g["text"], "size": size,
+                self.box({"x": gx, "y": y, "w": gw, "h": row_h, "text": str(g.get("text", "")), "size": size,
                           "font": font, "bold": e.get("bold_header", False), "pad": 0.01, "_internal": True}, text_only=True)
                 if g.get("rule", True):
                     self.segment((gx + trim, y + row_h), (gx + gw - trim, y + row_h),
@@ -484,7 +553,7 @@ class Slide:
             ch = float(e.get("caption_h", 0.3))
             self.box({"x": x, "y": y - ch - 0.04, "w": total_w, "h": ch, "text": e["caption"], "size": size,
                       "font": font, "align": "left", "valign": "bottom", "_internal": True}, text_only=True)
-        for note in e.get("notes", []):
+        for note in notes:
             nh = float(e.get("note_h", (size - 1) / 72 * 1.5))
             self.box({"x": x, "y": ny, "w": total_w, "h": nh, "text": note, "size": float(e.get("note_size", size - 1)),
                       "font": font, "align": "left", "valign": "top", "pad": 0.02, "_internal": True}, text_only=True)
@@ -661,19 +730,36 @@ def check_overlaps(s):
 
 
 def image_size(path):
-    with open(path, "rb") as f:
-        head = f.read(26)
-        if head[:8] == b"\x89PNG\r\n\x1a\n":
-            return struct.unpack(">II", head[16:24])
-        f.seek(2)
-        while True:
-            marker, = struct.unpack(">H", f.read(2))
-            length, = struct.unpack(">H", f.read(2))
-            if marker in (0xFFC0, 0xFFC1, 0xFFC2):
-                f.read(1)
-                h, w = struct.unpack(">HH", f.read(4))
-                return w, h
-            f.seek(length - 2, 1)
+    """(width, height) in pixels of a PNG or JPEG; dies with one line on a file it can't read."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(26)
+            if head[:8] == b"\x89PNG\r\n\x1a\n":
+                w, h = struct.unpack(">II", head[16:24])
+            elif head[:2] == b"\xff\xd8":
+                f.seek(2)
+                while True:
+                    b = f.read(1)
+                    while b == b"\xff":  # fill bytes before a marker
+                        b = f.read(1)
+                    if not b:
+                        raise ValueError("no frame header")
+                    marker = b[0]
+                    if marker in (0x01, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7):
+                        continue  # markers without a length
+                    length, = struct.unpack(">H", f.read(2))
+                    if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):  # SOFn
+                        f.read(1)
+                        h, w = struct.unpack(">HH", f.read(4))
+                        break
+                    f.seek(length - 2, 1)
+            else:
+                raise ValueError("not a PNG or JPEG file")
+    except (OSError, ValueError, struct.error) as e:
+        die("cannot read image size of %s (%s) — give both w and h, or re-save the image" % (path, e))
+    if not w or not h:
+        die("image %s reports a zero size — give both w and h" % path)
+    return w, h
 
 
 # ------------------------------------------------------------------ package
@@ -751,38 +837,61 @@ def write_pptx(slide, w, h, out):
 
 # ------------------------------------------------------------------ conversion
 
+def powerpoint_registered():
+    """Is PowerPoint's COM server registered? Read from the registry — never starts PowerPoint."""
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"PowerPoint.Application\CLSID") as k:
+            clsid = winreg.QueryValue(k, None)
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"CLSID\%s\LocalServer32" % clsid):
+            return True
+    except OSError:
+        return False
+
+
 def converter():
-    if os.name == "nt" and shutil.which("powershell"):
-        r = subprocess.run(["powershell", "-NoProfile", "-Command",
-                            "try { $p = New-Object -ComObject PowerPoint.Application; 'ok' } catch { 'no' }"],
-                           capture_output=True, text=True)
-        if "ok" in r.stdout:
-            return "powerpoint-win"
-    if sys.platform == "darwin" and os.path.isdir("/Applications/Microsoft PowerPoint.app"):
-        return "powerpoint-mac"
+    if os.name == "nt" and shutil.which("powershell") and powerpoint_registered():
+        return "powerpoint-win"
     for exe in ("soffice", "libreoffice", r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
                 "/Applications/LibreOffice.app/Contents/MacOS/soffice"):
         if shutil.which(exe) or os.path.isfile(exe):
             return "libreoffice:" + (shutil.which(exe) or exe)
+    # PowerPoint for Mac can't be driven from here; LibreOffice (checked above) is preferred when both exist
+    if sys.platform == "darwin" and os.path.isdir("/Applications/Microsoft PowerPoint.app"):
+        return "powerpoint-mac"
     return None
 
 
 def convert(pptx, pdf, png, w_in, h_in):
     kind = converter()
     if kind == "powerpoint-win":
-        ps = ("$ErrorActionPreference='Stop'; $pp = New-Object -ComObject PowerPoint.Application; "
+        # Only quit PowerPoint if this script started it — a window the user has open stays open.
+        ps = ("$ErrorActionPreference='Stop'; [Console]::OutputEncoding = [Text.Encoding]::UTF8; "
+              "$was = @(Get-Process POWERPNT -ErrorAction SilentlyContinue).Count -gt 0; "
+              "$pp = $null; $d = $null; "
+              "try {{ $pp = New-Object -ComObject PowerPoint.Application; "
               "$d = $pp.Presentations.Open('{src}', $true, $false, $false); "
               "$d.SaveAs('{pdf}', 32); "
-              "$d.Slides.Item(1).Export('{png}', 'PNG', {pw}, {ph}); "
-              "$d.Close()").format(src=pptx.replace("'", "''"), pdf=pdf.replace("'", "''"), png=png.replace("'", "''"),
-                                   pw=int(w_in * 200), ph=int(h_in * 200))
-        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True)
-        if r.returncode != 0 or not os.path.isfile(pdf):
-            return "PowerPoint conversion failed: " + (r.stderr or r.stdout).strip().splitlines()[-1:][0] if (r.stderr or r.stdout).strip() else "PowerPoint conversion failed"
+              "try {{ $d.Slides.Item(1).Export('{png}', 'PNG', {pw}, {ph}) }} catch {{ Write-Output ('png: ' + $_.Exception.Message) }} "
+              "}} finally {{ if ($d) {{ $d.Close() }}; "
+              "if ($pp -and -not $was -and $pp.Presentations.Count -eq 0) {{ $pp.Quit() }}; "
+              "if ($pp) {{ [void][Runtime.InteropServices.Marshal]::ReleaseComObject($pp) }} }}"
+              ).format(src=pptx.replace("'", "''"), pdf=pdf.replace("'", "''"), png=png.replace("'", "''"),
+                       pw=int(w_in * 200), ph=int(h_in * 200))
+        try:
+            r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True,
+                               encoding="utf-8", errors="replace", timeout=300)
+        except subprocess.TimeoutExpired:
+            return "PowerPoint conversion timed out (a dialog may be open in PowerPoint)"
+        if not os.path.isfile(pdf):
+            msg = (r.stderr or r.stdout).strip().splitlines()
+            return "PowerPoint conversion failed" + (": " + msg[-1] if msg else "")
         return None
     if kind and kind.startswith("libreoffice:"):
         exe, outdir = kind.split(":", 1)[1], os.path.dirname(pdf) or "."
-        r = subprocess.run([exe, "--headless", "--convert-to", "pdf", "--outdir", outdir, pptx], capture_output=True, text=True)
+        r = subprocess.run([exe, "--headless", "--convert-to", "pdf", "--outdir", outdir, pptx], capture_output=True,
+                           encoding="utf-8", errors="replace")
         if not os.path.isfile(pdf):
             return "LibreOffice conversion failed: " + r.stderr.strip()[-200:]
         subprocess.run([exe, "--headless", "--convert-to", "png", "--outdir", outdir, pptx], capture_output=True)
@@ -820,7 +929,11 @@ def fill_index(v, i):
 
 
 def draw(s, elements, base_dir, dx, dy, overlap=False):
+    if not isinstance(elements, list):
+        die("\"elements\" must be a list")
     for e in elements:
+        if not isinstance(e, dict):
+            die("each element must be an object {\"type\": ...}, got %r" % (e,))
         t = e.get("type", "box")
         ov = overlap or e.get("overlap", False)  # set on a group / repeat, it covers everything inside
         if t == "group":
@@ -842,6 +955,8 @@ def draw(s, elements, base_dir, dx, dy, overlap=False):
                      dx + k * float(e.get("dx", 0)), dy + k * float(e.get("dy", 0)), ov)
             continue
         e = shift(e, dx, dy)
+        if e.get("id") is not None:
+            e["id"] = str(e["id"])  # "id": 1 works like "1" (anchors are strings)
         if ov:
             e["overlap"] = True
         if t == "box":
@@ -889,13 +1004,18 @@ def place_panel_labels(s):
 
 def cmd_build(a):
     try:
-        with open(a.spec, encoding="utf-8") as f:
+        with open(a.spec, encoding="utf-8-sig") as f:  # -sig: a BOM (PowerShell, Notepad) is fine too
             spec = json.load(f)
     except (OSError, ValueError) as e:
         die("cannot read spec: %s" % e)
+    if not isinstance(spec, dict):
+        die("the spec must be a JSON object {\"elements\": [...]}")
     base_dir = os.path.dirname(os.path.abspath(a.spec))
     size = spec.get("size", "auto")
-    m = float(spec.get("margin", 0.03))
+    if size != "auto" and not (isinstance(size, list) and len(size) == 2 and all(
+            v == "auto" or (isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0) for v in size)):
+        die("\"size\" must be \"auto\", [width, \"auto\"] or [width, height] in inches, got %r" % (size,))
+    m = num(spec.get("margin", 0.03), "margin")
     probe = Slide(spec)  # first pass: measure the ink bounds
     draw(probe, spec.get("elements", []), base_dir, 0.0, 0.0)
     place_panel_labels(probe)
@@ -935,10 +1055,16 @@ def cmd_build(a):
     s.warnings += notes + check_overlaps(s)
     out = os.path.abspath(a.out or os.path.splitext(a.spec)[0])
     pptx, pdf, png = out + ".pptx", out + ".pdf", out + ".png"
-    for p in (pdf, png):
-        if os.path.exists(p):
-            os.remove(p)
-    write_pptx(s, w, h, pptx)
+    for p in (pdf, png, pptx):
+        try:
+            if os.path.exists(p):
+                os.remove(p)
+        except OSError:
+            die("cannot replace %s — it is open in another program (PowerPoint, a PDF viewer); close it and build again" % p)
+    try:
+        write_pptx(s, w, h, pptx)
+    except OSError as e:
+        die("cannot write %s: %s" % (pptx, e))
     print("pptx: %s · %.2f x %.2f in" % (pptx, w, h))
     if SCALE > 1:
         print("note: stored %.2fx larger (PowerPoint needs at least 1 in per side); place it at its real size, "
@@ -971,7 +1097,14 @@ def main():
     s = sub.add_parser("build"); s.add_argument("spec"); s.add_argument("--out"); s.add_argument("--no-pdf", action="store_true")
     sub.add_parser("check")
     a = ap.parse_args()
-    {"build": cmd_build, "check": cmd_check}[a.cmd](a)
+    try:
+        {"build": cmd_build, "check": cmd_check}[a.cmd](a)
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError, ZeroDivisionError, struct.error) as e:
+        # a malformed spec that slipped past the checks above: one line, not a traceback
+        what = ("missing key %s" % e) if isinstance(e, KeyError) else "%s: %s" % (type(e).__name__, e)
+        die("bad spec (%s) — check the element fields against the research-figures skill" % what)
+    except OSError as e:
+        die(str(e))
 
 
 if __name__ == "__main__":

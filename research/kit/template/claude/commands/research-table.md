@@ -28,7 +28,7 @@ Reply in the user's language. Text **inside** the table (headers, method names, 
 - Per column: best **bold**, second __underlined__ — set `best` per column (`"max"` / `"min"` by the metric's direction) and let the script mark them; set `decimals` per column.
 - `midrule` between groups of rows (e.g. prior work vs. ours, or different input settings).
 - Row-specific remarks become footnote markers on the cell (`Ours^{*}`, `NeRF^{†}`) with the explanation in `notes`. Add a note for anything the reader would otherwise misread: different training settings, numbers re-run by you vs. reported, the bold/underline convention if needed, and the source of numbers taken from papers.
-- Column widths: wide enough for the longest entry; total width ≤ 3.25 in for a single-column table unless it doesn't fit, then 6.875 in.
+- Column widths: wide enough for the longest entry; total width ≤ one column (3.25 in, CVPR-style) unless it doesn't fit, then full width (6.875 in) — or the venue's sizes from the skill's Print sizes table.
 
 ## 3. Build
 

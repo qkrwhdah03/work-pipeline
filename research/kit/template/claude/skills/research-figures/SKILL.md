@@ -14,7 +14,7 @@ Run: `python3 .claude/skills/research-figures/scripts/figuretool.py build <spec.
 
 1. Write the spec.
 2. `build` it. It prints the `.pptx`, `.pdf` and `.png` paths, the canvas size, and `warning:` lines — fix every one before looking further:
-   - **text that wraps or overflows** its box (widths come from Arial glyph metrics, so take them literally);
+   - **text that wraps or overflows** its box, and **table cells wider than their column** (they would wrap and make the table taller) — widths come from Arial glyph metrics, so take them literally;
    - **elbow arrows** whose last segment is too short for the arrowhead, or with a diagonal segment;
    - **overlaps**: two shapes overlapping (a shape fully inside another — a panel or background — is fine), two pieces of text colliding, text crossing the edge of a shape, an arrow or line running through a shape or text it doesn't connect. Elements in a figure must not overlap unless that is the point (overlapping Gaussians, a splat drawn over a tile grid): mark those with `"overlap": true` on the element, or on a `group` / `repeat` to cover everything inside;
    - **canvas problems** when the size is fixed (content cut off, or unused margins).
@@ -27,12 +27,17 @@ Design at the size it will be printed, so font sizes are real.
 
 | Use | Width |
 | --- | --- |
-| Single column (CVPR / ICCV / ECCV / NeurIPS-style two-column papers) | 3.25 in |
-| Full width, two-column papers | 6.875 in |
-| ACM (SIGGRAPH / TOG) single · double column | 3.33 in · 7.0 in |
-| Single-column papers (NeurIPS, ICLR, ICML main text) | 5.5 in |
+| CVPR / ICCV / WACV (two columns) — one column · full width | 3.25 in · 6.875 in |
+| ICML (two columns) — one column · full width | 3.25 in · 6.75 in |
+| ACM (SIGGRAPH / TOG, two columns) — one column · full width | 3.33 in · 7.0 in |
+| NeurIPS / ICLR (one column) — text width | 5.5 in |
+| ECCV (Springer LNCS, one column) — text width | 4.8 in |
+
+When the venue isn't named, default to CVPR sizes.
 
 **Margins are minimal on all four sides.** With `"size": "auto"` (the default) the canvas is cropped to the ink — shapes, lines, arrowheads and the text itself, not oversized text boxes — plus `margin` (default 0.03 in) on every side, wherever the elements were placed. When the width must be exact (full width at 6.875 in), use `"size": [6.875, "auto"]`: the height is still cropped and the content is centered horizontally; a warning says if it is cut off or leaves wide side margins. `"size": [w, h]` fixes both.
+
+PDF and PNG come from PowerPoint on Windows (run in the background; a PowerPoint window you have open is left alone) or LibreOffice (preferred on macOS when installed). If the build says it can't replace a file, close it in PowerPoint or the PDF viewer and build again.
 
 PowerPoint can't store a slide under 1 in on a side, so a very small figure is saved proportionally enlarged; `build` then prints the real width to use in `\includegraphics`.
 
@@ -73,7 +78,7 @@ PowerPoint can't store a slide under 1 in on a side, so a very small figure is s
 
 The `//` comments above are explanations only — a real spec is plain JSON. Coordinates and sizes are in **inches** from the top-left corner.
 
-**Text markup** (any `text`, table cells, notes): `**bold**`, `__underline__`, `*italic*`, `^{superscript}`, `_{subscript}`, `{size:10|larger text}`, `\n` for a new line.
+**Text markup** (any `text`, table cells, notes): `**bold**`, `__underline__`, `*italic*`, `^{superscript}`, `_{subscript}`, `{size:10|larger text}` (may contain one level of markup, e.g. `{size:10|x^{2}}`), `\n` for a new line.
 
 | Element | Fields |
 | --- | --- |
@@ -84,7 +89,7 @@ The `//` comments above are explanations only — a real spec is plain JSON. Coo
 | `group` | `x`, `y`, `elements` — children use coordinates relative to the group (e.g. one panel of a multi-panel figure). `label` adds a sub-figure label centered under the panel (`label_pos` `"above"` to put it over it, `label_size`, `label_bold`, `label_gap` default 0.06 in) |
 | `repeat` | `count`, `dx`, `dy`, `element` (or `elements`) — copy *k* is shifted by *k*·(`dx`, `dy`); `{i}` (from 0) and `{n}` (from 1) in any string are filled in, e.g. `"id": "pt{i}"`. Nest two repeats for a grid. |
 | `image` | `path` (PNG / JPEG, relative to the spec), `x`, `y`, `w` and/or `h` (aspect kept if one is given), `id`, `line` |
-| `table` | `x`, `y`, `columns`, `rows` (lists of cell strings, or the string `"midrule"`), `col_widths` (or `w`), `align` (per column: `l` `c` `r`), `header_groups` (`[{"text": "Mip-NeRF360", "span": [1, 3]}]` — column indices, 0-based, inclusive), `best` (per column `"max"`, `"min"` or `null` — the script bolds the best and underlines the second best, ties share the mark; cells you already marked are left alone), `second` (default `true`), `decimals` (per column, e.g. `[null, 2, 3]`), `notes` (lines under the table; several short notes can share a line), `font`, `size`, `row_h`, `bold_header`, `caption` |
+| `table` | `x`, `y`, `columns`, `rows` (lists of cell strings, or the string `"midrule"`), `col_widths` (or `w`), `align` (per column: `l` `c` `r`, or `left` `center` `right`), `header_groups` (`[{"text": "Mip-NeRF360", "span": [1, 3]}]` — column indices, 0-based, inclusive; spans must not overlap), `best` (per column `"max"`, `"min"` or `null` — the script bolds the best and underlines the second best, ties share the mark; cells you already marked are left alone), `second` (default `true`), `decimals` (per column, e.g. `[null, 2, 3]`), `notes` (lines under the table — a list, or one string; several short notes can share a line), `font`, `size`, `row_h`, `bold_header`, `caption` |
 
 An element's `id` can be used as an arrow anchor only after the element is defined. Any element, group or repeat takes `"overlap": true` to mark an intended overlap.
 

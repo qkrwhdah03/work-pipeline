@@ -45,6 +45,11 @@ else
   printf '\n# Manim render cache (regenerated on every render)\n.research/animations/*/.media/\n' >> "$GI"
   echo "  [v] .gitignore  added .research/animations/*/.media"
 fi
+if grep -qE "^/?\.research(/cache)?/?(\*)?[[:space:]]*$" "$GI"; then :
+else
+  printf '\n# Paper full texts fetched by researchtool.py (re-downloadable)\n.research/cache/\n' >> "$GI"
+  echo "  [v] .gitignore  added .research/cache"
+fi
 
 # --- CLAUDE.md : replace only the marker block ---
 CM="$TARGET/CLAUDE.md"

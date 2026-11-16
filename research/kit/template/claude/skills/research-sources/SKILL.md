@@ -1,6 +1,6 @@
 ---
 name: research-sources
-description: Source and verification rules for the research pipeline — which venues count as trusted, how to judge arXiv-only papers, how to verify a paper's title, venue, year, links and code before citing it, and which lookup services to use. Read this before running /research-list-paper or /research-summary-paper. Not for general web research.
+description: Source and verification rules for the research pipeline — which venues count as trusted, how to judge arXiv-only papers, how to verify a paper's title, venue, year, links and code before citing it, and which lookup services to use. Read this before running /research-list-paper, /research-summary-paper or /research-download-paper, or when /research-table takes numbers from papers. Not for general web research.
 user-invocable: false
 ---
 
@@ -76,16 +76,16 @@ There are two levels:
 
 | Command | Gives you |
 | --- | --- |
-| `search "<query>" [--n 10] [--since YEAR]` | candidates from OpenAlex, one line each: year · venue · citations · title · DOI · arXiv id |
+| `search "<query>" [--n 10] [--since YEAR] [--sort relevance\|cites]` | candidates from OpenAlex, one line each: year · venue · citations · title · DOI · arXiv id — by relevance (default) or by citation count |
 | `meta <arXiv id \| DOI \| "title">` | arXiv (authors, comment, journal_ref), Crossref (venue, volume, year), OpenAlex (venue, citations, open-access URL), and the **exact** abstract — the same published record whichever id you start from |
 | `cites <arXiv id \| DOI> [--n 10] [--since YEAR]` | the most-cited works citing it |
 | `page <url> [--grep REGEX] [--links REGEX]` | fetches as a browser (gets past CVF's block): page title, CVF paper title, GitHub links on the page, matching lines / links |
 | `venue-url "<title>" <CVPR2024 \| ICCV2023 \| WACV2024>` | the paper's CVF Open Access page, found from the conference listing — CVF URLs can't be guessed reliably |
 | `github <owner/repo> --paper "<title>" --paper <arXiv id> [--page <project page>]` | repo exists, owner, stars, whether the README names the paper, and whether the project page links the repo |
 | `bibtex <venue page URL> [DOI] [arXiv id]` | the first link that shows the BibTeX: venue page (CVF, PMLR, NeurIPS `.bib`) → Crossref by DOI → arXiv — and the entry itself |
-| `fulltext <arXiv id> [--out FILE]` | arXiv HTML → text file (equations kept) + outline with line numbers and table / figure captions |
+| `fulltext <arXiv id> [--out FILE]` | arXiv HTML → text file in `.research/cache/` (equations kept) + outline with line numbers and table / figure captions |
 | `download <venue page \| PDF URL \| DOI \| arXiv id>... --year Y --title T --venue V [--dir DIR \| --downloads]` | saves the first open PDF among the sources as `Y. T (V).pdf` in `.research/pdfs/` (or `--dir`, a folder the user named; `--downloads`, their Downloads folder); checks it is a real PDF; skips existing files. Writes `Y. T (V).txt` beside it (citation, links, BibTeX + source, abstract; `--code` / `--page` add verified links) and rebuilds `index.txt` + `references.bib` in that folder |
-| `index [--dir DIR \| --downloads]` | rebuilds `index.txt` and `references.bib` from the per-paper `.txt` files (after deleting papers) |
+| `index [--dir DIR \| --downloads]` | rebuilds `index.txt` and `references.bib` from the per-paper `.txt` files (after deleting papers). Only a `.txt` with a same-named `.pdf` and a `== Citation ==` section counts; an `index.txt` / `references.bib` it didn't generate is left unchanged with a `WARNING:` line |
 
 It exits with one `ERROR: …` line when a lookup fails; then fall back to the services below or WebSearch / WebFetch.
 
@@ -105,11 +105,11 @@ Use web search to discover candidates, then these to verify. The script already 
 
 **How to fetch** — many academic sites block automated clients:
 
-- **CVF Open Access, ACM DL, IEEE Xplore** often return 403 to WebFetch. Use `curl -sL -A "Mozilla/5.0"` instead. ACM DL and IEEE may still refuse; fall back to the DOI record.
+- **CVF Open Access, ACM DL, IEEE Xplore** often return 403 to WebFetch. Use `researchtool.py page <url>` instead — it fetches as a browser. ACM DL and IEEE may still refuse; fall back to the DOI record.
 - **OpenReview** (site and API) is usually behind a bot challenge. Confirm ICLR / NeurIPS papers on the conference's virtual site (`iclr.cc/virtual/…`, `neurips.cc/virtual/…`), which also links the OpenReview forum.
 - **Crossref** does not index ICLR or NeurIPS (no DOIs) — use the virtual sites or OpenAlex for those.
 - **DBLP** is behind a bot challenge; don't rely on it.
-- **Exact text** (abstracts, numbers): fetch with curl and parse the XML / HTML yourself. WebFetch returns a paraphrase, which is not good enough to quote or copy numbers from.
+- **Exact text** (abstracts, numbers): take it from `researchtool.py meta` (abstract), `fulltext` (paper text) or `page --grep` (lines of a page). WebFetch returns a paraphrase, which is not good enough to quote or copy numbers from.
 
 If the environment has `SEMANTIC_SCHOLAR_API_KEY` or `OPENALEX_API_KEY` set, pass it (`x-api-key` header / `api_key=` parameter). Never sign up for keys or send the user's email to any service on their behalf.
 

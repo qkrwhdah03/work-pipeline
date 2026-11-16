@@ -56,27 +56,47 @@ def env_paths(env):
     return [os.path.join(env, "bin")]
 
 
+MIN_MANIM = (0, 19)  # render needs PyAV (`av`, a Manim dependency since 0.19) and 0.19's partial-movie layout
+TOO_OLD = []         # (python, version) of interpreters skipped for an old Manim — reported by check / render
+
+
 def manim_version(py):
     try:
-        r = subprocess.run([py, "-c", "import manim; print(manim.__version__)"], capture_output=True, text=True, timeout=120)
+        r = subprocess.run([py, "-c", "import manim; print(manim.__version__)"], capture_output=True,
+                           encoding="utf-8", errors="replace", timeout=120)
     except (OSError, subprocess.TimeoutExpired):
         return None
     return r.stdout.strip() if r.returncode == 0 else None
 
 
+def version_ok(v):
+    nums = [int(x) for x in re.findall(r"\d+", v)[:2]]
+    return tuple(nums + [0] * (2 - len(nums))) >= MIN_MANIM
+
+
 def find_python():
-    """(python, env folder or None, version) of the first interpreter with Manim."""
+    """(python, env folder or None, version) of the first interpreter with Manim >= 0.19."""
     cands = []
     if os.environ.get("MANIM_PYTHON"):
         cands.append((os.environ["MANIM_PYTHON"], None))
     if os.path.isfile(env_python(ENV)):
         cands.append((env_python(ENV), ENV))
     cands.append((sys.executable, None))
+    del TOO_OLD[:]
     for py, env in cands:
         v = manim_version(py)
-        if v:
+        if v and version_ok(v):
             return py, env, v
+        if v:
+            TOO_OLD.append((py, v))
     return None, None, None
+
+
+def too_old_note():
+    if not TOO_OLD:
+        return ""
+    return " (skipped %s — Manim %s is older than %d.%d, which the step preview and GIF need)" % (
+        ", ".join(p for p, _ in TOO_OLD), ", ".join(v for _, v in TOO_OLD), MIN_MANIM[0], MIN_MANIM[1])
 
 
 def run_env(py, env):
@@ -91,7 +111,7 @@ def run_env(py, env):
 
 def latex_status(py, env):
     probe = "import shutil; print(bool(shutil.which('latex')), bool(shutil.which('dvisvgm')))"
-    r = subprocess.run([py, "-c", probe], capture_output=True, text=True, env=run_env(py, env))
+    r = subprocess.run([py, "-c", probe], capture_output=True, encoding="utf-8", errors="replace", env=run_env(py, env))
     latex, dvisvgm = (r.stdout.split() + ["False", "False"])[:2]
     if latex == "True" and dvisvgm == "True":
         return "LaTeX: yes — formula() uses MathTex"
@@ -135,14 +155,18 @@ def download_micromamba(local):
         data = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "research-pipeline"}), timeout=120).read()
     except OSError as e:
         return None, "micromamba download failed: %s" % e
-    with tarfile.open(fileobj=io.BytesIO(data), mode="r:bz2") as t:
-        member = next((m for m in t.getmembers() if m.name.endswith(("bin/micromamba", "bin/micromamba.exe"))), None)
-        if member is None:
-            return None, "micromamba archive had no binary"
-        os.makedirs(os.path.dirname(local), exist_ok=True)
-        with open(local, "wb") as f:
-            f.write(t.extractfile(member).read())
-    os.chmod(local, 0o755)
+    try:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:bz2") as t:
+            member = next((m for m in t.getmembers() if m.name.endswith(("bin/micromamba", "bin/micromamba.exe"))), None)
+            if member is None:
+                return None, "micromamba archive had no binary"
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+            with open(local + ".part", "wb") as f:
+                f.write(t.extractfile(member).read())
+        os.replace(local + ".part", local)  # never leave a half-written binary that later counts as "cached"
+        os.chmod(local, 0o755)
+    except (tarfile.TarError, EOFError, OSError) as e:
+        return None, "micromamba download was not a valid archive: %s" % e
     return local, "micromamba"
 
 
@@ -190,7 +214,8 @@ def cmd_setup(a):
 def cmd_check(a):
     py, env, v = find_python()
     if not py:
-        print("manim: not installed — run `animtool.py setup` (one time, ~0.5 GB, nothing touches your own Python)")
+        print("manim: not installed — run `animtool.py setup` (one time, ~0.5 GB, nothing touches your own Python)"
+              + too_old_note())
         return
     print("manim: %s · %s" % (v, py))
     print(latex_status(py, env))
@@ -230,16 +255,40 @@ if tiles:
         out.paste(t.resize((w, h)), (x, y + 18)); d.rectangle([x, y + 18, x + w - 1, y + 17 + h], outline="#999999")
         d.text((x, y + 3), "step %d" % (i + 1), fill="black")
     out.save(sheet)
+def duration(c, s):
+    if c.duration:  # container duration, in microseconds
+        return c.duration / 1e6
+    if s.duration and s.time_base:
+        return float(s.duration * s.time_base)
+    if s.frames and s.average_rate:
+        return s.frames / float(s.average_rate)
+    return 0.0
 with av.open(video) as c:
-    s = c.streams.video[0]; dur = float(s.duration * s.time_base) if s.duration else 0.0
+    s = c.streams.video[0]
+    dur = duration(c, s)
     print("video: %dx%d · %.1fs · %d steps" % (s.width, s.height, dur, len(tiles)))
-    if gif != "-":
-        frames, step = [], max(1, round(float(s.average_rate or 30) / 12))
-        for i, fr in enumerate(c.decode(video=0)):
-            if i % step == 0:
-                im = fr.to_image(); frames.append(im.resize((960, int(im.height * 960 / im.width))))
-        if frames:
-            frames[0].save(gif, save_all=True, append_images=frames[1:], duration=int(1000 * step / float(s.average_rate or 30)), loop=0, optimize=True)
+if gif != "-":
+    # GIF: 960 px wide, 12 fps picked by timestamp (not every n-th frame), each frame kept as a 256-color
+    # image (1 byte / pixel) and at most MAX frames — a 30 s clip stays around 180 MB in memory, not ~700 MB.
+    FPS, MAX = 12.0, 480
+    fps = min(FPS, MAX / dur) if dur > 0 else FPS
+    frames, next_t, k = [], 0.0, 0
+    with av.open(video) as c:
+        for fr in c.decode(video=0):
+            t = float(fr.time) if fr.time is not None else k / fps
+            if t + 1e-6 < next_t:
+                continue
+            im = fr.to_image()
+            im = im.resize((960, max(1, round(im.height * 960 / im.width))), Image.LANCZOS)
+            frames.append(im.quantize(colors=256, method=Image.Quantize.MEDIANCUT if hasattr(Image, "Quantize") else 0))
+            k += 1
+            next_t = k / fps
+            if len(frames) >= MAX:
+                break
+    if frames:
+        # GIF delays are whole centiseconds: spread the rounding so the average is exactly 1/fps
+        cs = [round(100 * (i + 1) / fps) - round(100 * i / fps) for i in range(len(frames))]
+        frames[0].save(gif, save_all=True, append_images=frames[1:], duration=[10 * d for d in cs], loop=0, optimize=True)
 '''
 
 
@@ -267,7 +316,7 @@ def cmd_render(a):
         die("not found: " + scene)
     py, env, v = find_python()
     if not py:
-        die("Manim is not installed — run `animtool.py setup` first (one time).")
+        die("Manim is not installed — run `animtool.py setup` first (one time)." + too_old_note())
     name = a.scene or scene_name(scene)
     out = os.path.dirname(scene)
     media = os.path.join(out, ".media")
@@ -287,11 +336,16 @@ def cmd_render(a):
     vid = max(vids, key=os.path.getmtime)
     lst = os.path.join(os.path.dirname(vid), "partial_movie_files", name, "partial_movie_file_list.txt")
     final_mp4 = os.path.join(out, name + ".mp4")
-    shutil.copyfile(vid, final_mp4)
+    try:
+        shutil.copyfile(vid, final_mp4)
+    except OSError as e:
+        die("cannot write %s (%s) — close it in your player and render again" % (final_mp4, e))
     sheet = os.path.join(out, "steps.png")
     gif = os.path.join(out, name + ".gif") if a.final else "-"
+    if not os.path.isfile(lst):
+        die("render finished but Manim's step list is missing (%s) · log: %s" % (lst, log))
     r = subprocess.run([py, "-c", SHEET, lst, sheet, str(a.cols), final_mp4, gif],
-                       capture_output=True, text=True, env=run_env(py, env))
+                       capture_output=True, encoding="utf-8", errors="replace", env=run_env(py, env))
     if r.returncode != 0:
         die("frames / GIF step failed: " + (r.stderr.strip().splitlines() or ["?"])[-1])
     print(r.stdout.strip())

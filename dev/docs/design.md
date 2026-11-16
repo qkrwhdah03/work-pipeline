@@ -1,7 +1,5 @@
 # Development Pipeline Design
 
-2026-10-21
-
 ## Overview
 
 This pipeline takes one development request around a full loop — design · implementation · testing · documentation · commit — then stops and waits for the next request.

@@ -53,6 +53,11 @@ if ($giText -notmatch "(?m)^/?\.research/?(\*)?\s*$|\.media/") {
   Add-Content $Gi "`r`n# Manim render cache (regenerated on every render)`r`n.research/animations/*/.media/" -Encoding UTF8
   Write-Host "  [v] .gitignore  added .research/animations/*/.media"
 }
+$giText = Get-Content $Gi -Raw -Encoding UTF8
+if ($giText -notmatch "(?m)^/?\.research(/cache)?/?(\*)?\s*$") {
+  Add-Content $Gi "`r`n# Paper full texts fetched by researchtool.py (re-downloadable)`r`n.research/cache/" -Encoding UTF8
+  Write-Host "  [v] .gitignore  added .research/cache"
+}
 
 # --- CLAUDE.md : replace only the marker block, preserve the rest ---
 $ClaudeMd = Join-Path $Target "CLAUDE.md"

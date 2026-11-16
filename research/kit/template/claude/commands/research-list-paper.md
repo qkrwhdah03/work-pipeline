@@ -28,7 +28,7 @@ Cast a wide net, then narrow.
 
 - WebSearch with several phrasings of the topic, plus the field's established terms for it.
 - Venue-targeted WebSearch (e.g. `site:openaccess.thecvf.com`, `site:openreview.net`) for recent tier-1 work.
-- `RT search "<query>" --since <year>` for a second, citation-ranked view.
+- `RT search "<query>" --since <year> --sort cites` for a second, citation-ranked view (default `--sort relevance`). OpenAlex matches loosely, so highly cited off-topic papers can top this view — skip those.
 - **Recent surveys** on the topic — their taxonomy and reference lists point to the canonical papers. Use them to find papers; don't list a survey unless it is itself a key reference, and label it `(survey)`.
 - From the clearly seminal paper(s): `RT cites <arXiv id or DOI> --n 15` for the influential follow-ups.
 

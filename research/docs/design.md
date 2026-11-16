@@ -1,12 +1,10 @@
 # Research Pipeline Design
 
-2026-10-22
-
 ## Overview
 
 Commands for working with the literature in Claude Code: find the papers that matter on a topic, take a single paper apart, download a paper's PDF with a clean file name, and make the figures and results tables that go into your own paper.
 
-The problem both solve is trust. A literature answer is only useful if every paper in it is real, correctly attributed and worth reading, and if the analysis separates what the paper says from what the reader should think of it. So the pipeline is built around **trusted sources** and **verification before citation**.
+The problem they all share is trust. A literature answer is only useful if every paper in it is real, correctly attributed and worth reading, and if the analysis separates what the paper says from what the reader should think of it. So the pipeline is built around **trusted sources** and **verification before citation**.
 
 | Command | Input | Output |
 | --- | --- | --- |
@@ -61,7 +59,7 @@ A short animation for a talk or project page — 10–30 s, one message, 4–8 s
 
 Both write a JSON spec and build it with `figuretool.py` (skill `research-figures`) into an **editable PPTX** — real PowerPoint shapes and tables, not a picture — plus a PDF for `\includegraphics` and a PNG preview. The build crops the canvas to the ink with minimal margins on all four sides and warns about overlapping shapes, colliding text, arrows crossing unrelated elements, elbow arrows whose arrowhead segment is too short to show the turn, and text that won't fit (measured with Arial glyph widths; text never breaks a word and only breaks lines where the spec says). Sub-figure labels `(a)`, `(b)` are placed by the script, centered under each panel on a shared baseline; Claude fixes every warning, then reads the preview for anything else before reporting (up to 3 rounds). Intended overlaps are marked explicitly. The spec is kept, so later changes are small edits and a rebuild.
 
-- **Figures** are sized for print (3.25 in single column, 6.875 in full width) with real font sizes (≥ 7 pt), a small colorblind-safe palette, and no decoration. Pipelines, concept comparisons, architectures, or data plots (matplotlib, placed as an image).
+- **Figures** are sized for print at the venue's widths (CVPR-style by default: 3.25 in one column, 6.875 in full width; NeurIPS / ICLR 5.5 in) with real font sizes (≥ 7 pt), a small colorblind-safe palette, and no decoration. Pipelines, concept comparisons, architectures, or data plots (matplotlib, placed as an image).
 - **Tables** follow booktabs: heavy top and bottom rules, a light rule under the header, trimmed rules under column groups, no vertical lines, best **bold** and second __underlined__ per column, `↑`/`↓` in headers, and footnotes (`*`, `†`, `‡`) on specific rows explained under the table.
 - Numbers in either come only from the user or from the paper's own text, with the source noted.
 
@@ -104,7 +102,7 @@ Anything that rests on a weaker source or couldn't be reached is written in the 
 
 Lookups run through `researchtool.py` in the skill's `scripts/` folder — search, metadata, citing works, venue pages, GitHub, BibTeX links and full text — so each run prints only what's needed instead of raw pages.
 
-The skill `research-sources` holds the shared rules: venue tiers, arXiv-only criteria, the verification table, link priority and lookup services. Every command reads it first.
+The skill `research-sources` holds the shared rules: venue tiers, arXiv-only criteria, the verification table, link priority and lookup services. The list, summary and download commands read it first, and `/research-table` does too when it takes numbers from papers.
 
 Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Semantic Scholar APIs plus the venue sites (CVF Open Access, OpenReview, PMLR, NeurIPS proceedings, ACM DL). All work without keys; if `SEMANTIC_SCHOLAR_API_KEY` or `OPENALEX_API_KEY` is set, it is used. The pipeline never signs up for keys or sends the user's details anywhere.
 
@@ -131,7 +129,8 @@ Discovery uses web search. Verification uses arXiv, Crossref, OpenAlex and Seman
     ├── pdfs/                          /research-download-paper output (gitignored)
     ├── figures/                       /research-figure output
     ├── tables/                        /research-table output
-    └── animations/                    /research-animation output (render cache .media/ gitignored)
+    ├── animations/                    /research-animation output (render cache .media/ gitignored)
+    └── cache/                         full texts saved by `researchtool.py fulltext` (gitignored, safe to delete)
 ```
 
 `/research-summary-paper` reads `.research/lists/` when placing a paper in its field, so earlier lists make later analyses better informed.

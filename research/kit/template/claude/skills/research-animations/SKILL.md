@@ -12,7 +12,7 @@ An animation is a Manim scene file (`scene.py`) — that file is the spec. `scri
 
 ## Setup — once per machine
 
-`AT check` says whether Manim is usable. If not, **ask the user once** ("Manim isn't installed; set it up now? one time, about 0.5 GB, a few minutes — it goes into its own environment and doesn't touch your Python") and on yes run `AT setup`. It uses micromamba + conda-forge (Manim with cairo, pango and ffmpeg, no compiler, no admin rights) on Windows, macOS and Linux, downloading micromamba if needed; pip into a venv is the fallback. The environment lives in `~/.cache/research-pipeline/manim/` (Windows: `%LOCALAPPDATA%\research-pipeline\manim\`) and is shared by all projects. `MANIM_PYTHON=<python with manim>` uses an existing install instead.
+`AT check` says whether Manim is usable. If not, **ask the user once** ("Manim isn't installed; set it up now? one time, about 0.5 GB, a few minutes — it goes into its own environment and doesn't touch your Python") and on yes run `AT setup`. It uses micromamba + conda-forge (Manim with cairo, pango and ffmpeg, no compiler, no admin rights) on Windows, macOS and Linux, downloading micromamba if needed; pip into a venv is the fallback. The environment lives in `~/.cache/research-pipeline/manim/` (Windows: `%LOCALAPPDATA%\research-pipeline\manim\`) and is shared by all projects. `MANIM_PYTHON=<python with manim>` uses an existing install instead. Manim 0.19 or newer is required; an older install (`MANIM_PYTHON` included) is skipped, and `check` says so.
 
 LaTeX is optional and never installed automatically: `formula()` uses `MathTex` when LaTeX + dvisvgm exist, otherwise matplotlib or Pango markup — sub/superscripts, Greek and common symbols all work.
 
@@ -22,7 +22,7 @@ LaTeX is optional and never installed automatically: `formula()` uses `MathTex` 
 2. `AT render scene.py` — 480p draft. Output: duration, step count, `steps.png`. On a failure it prints the error and the `scene.py` line only; open `render.log` only if that isn't enough.
 3. **Read `steps.png`** and fix: overlaps, text too small or cut off at the frame edge, arrows that miss or cross shapes, uneven spacing, a step that shows nothing new. Edit `scene.py` in place — don't rewrite it whole.
 4. Repeat 2–3, **at most 3 rounds**. Manim caches unchanged steps, so re-renders are fast.
-5. `AT render scene.py --final` — 1080p30 MP4 + GIF (960 px, 12 fps) for slides. Only once, at the end.
+5. `AT render scene.py --final` — 1080p30 MP4 + GIF (960 px, 12 fps; lower for clips over 40 s) for slides. Only once, at the end.
 
 ## Scene rules
 
@@ -39,11 +39,11 @@ LaTeX is optional and never installed automatically: `formula()` uses `MathTex` 
 | Helper | Does |
 | --- | --- |
 | `paper_style(self)` | white background, dark ink, the first sans font the machine has, thin strokes |
-| `box(text, fill, line, w=2.2, h=0.9, size=28, bold=False)` | rounded box with a centered label (text shrinks to fit) |
+| `box(text, fill, line, w=2.2, h=0.9, size=28, bold=False)` | rounded box with a centered label (text shrinks to fit width and height) |
 | `token_row(n, fill, line, side=0.38, gap=0.1)` | n square tokens in a row |
 | `connect(a, b, color=INK)` | arrow between facing edges of two mobjects |
 | `label(text, size=28, color=INK)` | plain text |
-| `formula(tex, size=36)` | math that renders with or without LaTeX |
+| `formula(tex, size=36)` | math that renders with or without LaTeX — without it: matplotlib, else markup (fractions as a/b, roots, accents, bold or upright text) |
 
 ## 3D
 
